@@ -19,6 +19,14 @@ Developed by **[Ziaul Kamal](https://github.com/ziaulkamal)**
 
 ---
 
+## Preview
+
+<p align="center">
+  <img src="./screenshoot.png" alt="E-Gov CRM Preview" width="100%">
+</p>
+
+---
+
 ## Overview
 
 **E-Gov CRM** adalah starter kit UI yang dibangun di atas stack modern Laravel + Inertia.js + Vue 3 + TailwindCSS v4. Menyediakan sistem komponen lengkap, template halaman, dan layout shell yang dirancang untuk aplikasi CRM, dashboard administrasi, dan layanan berbasis pemerintahan digital.
