@@ -132,7 +132,7 @@ const mainStyle = computed(() => ({
     backgroundColor: 'var(--color-bg)',
     paddingLeft: isMobile.value
         ? '0px'
-        : (sidebarCollapsed.value ? '72px' : '272px'),
+        : (sidebarCollapsed.value ? '5px' : '2px'),
     transition: 'padding-left 300ms ease-out',
 }));
 
