@@ -8,6 +8,7 @@
             :nav-groups="resolvedNavGroups"
             :user="user"
             :is-mobile="isMobile"
+            :is-dark="isDark"
             :app-name="appName"
             :app-subtitle="appSubtitle"
             @update:collapsed="onCollapsedChange"
@@ -23,15 +24,11 @@
                 :sidebar-collapsed="sidebarCollapsed"
                 :is-dark="isDark"
                 :user="user"
-                :shortcuts="resolvedShortcuts"
                 :notification-count="notificationCount"
                 :is-mobile="isMobile"
-                :is-tablet="isTablet"
                 @toggle-sidebar="toggleSidebar"
                 @toggle-theme="toggleTheme"
-                @open-search="$emit('open-search')"
                 @open-notifications="$emit('open-notifications')"
-                @open-user-menu="$emit('open-user-menu')"
             />
 
             <!-- Page content -->
@@ -80,8 +77,8 @@ type TopbarShortcut = { label: string; icon: unknown; onClick?: () => void };
 const props = defineProps({
     navGroups:         { type: Array as () => NavGroup[] | null, default: null },
     user:              { type: Object as () => LayoutUser,       default: null },
-    appName:           { type: String, default: 'CRM Studio' },
-    appSubtitle:       { type: String, default: 'Laravel + Vue' },
+    appName:           { type: String, default: 'E-Gov CRM' },
+    appSubtitle:       { type: String, default: 'Laravel + Tailwinds + Vue' },
     notificationCount: { type: Number, default: 0 },
     topbarShortcuts:   { type: Array as () => TopbarShortcut[] | null, default: null },
 });
@@ -99,13 +96,24 @@ const windowWidth       = ref<number>(typeof window !== 'undefined' ? window.inn
 const isMobile          = computed<boolean>(() => windowWidth.value < 768);
 const isTablet          = computed<boolean>(() => windowWidth.value >= 768 && windowWidth.value < 1024);
 
-// Sidebar state
-const sidebarCollapsed  = ref<boolean>(false);   // desktop: user controlled
-const sidebarMobileOpen = ref<boolean>(false);   // mobile: drawer
+// Sidebar state — persisted to localStorage
+const SIDEBAR_KEY = 'crm_sidebar_collapsed';
 
-// Auto-collapse on tablet
+function readSidebarCollapsed(): boolean {
+    if (typeof window === 'undefined') return false;
+    try { return localStorage.getItem(SIDEBAR_KEY) === 'true'; } catch { return false; }
+}
+
+const sidebarCollapsed  = ref<boolean>(readSidebarCollapsed());
+const sidebarMobileOpen = ref<boolean>(false);
+
+watch(sidebarCollapsed, (val) => {
+    try { localStorage.setItem(SIDEBAR_KEY, String(val)); } catch { /* ignore */ }
+});
+
+// Auto-collapse on tablet (but don't override user preference on desktop)
 watch(isTablet, (tablet) => { if (tablet) sidebarCollapsed.value = true; }, { immediate: true });
-watch(isMobile, (mobile) => { if (mobile) { sidebarCollapsed.value = false; sidebarMobileOpen.value = false; } });
+watch(isMobile, (mobile) => { if (mobile) { sidebarMobileOpen.value = false; } });
 
 function toggleSidebar(): void {
     if (isMobile.value) {
@@ -119,15 +127,14 @@ function onCollapsedChange(val: boolean): void {
     sidebarCollapsed.value = val;
 }
 
-// Main content left padding — inline style agar tidak bergantung Tailwind JIT dynamic class
-const mainStyle = computed(() => {
-    if (isMobile.value) {
-        // Mobile: sidebar jadi overlay, content tidak perlu padding
-        return { backgroundColor: 'var(--color-bg)' };
-    }
-    const pl = sidebarCollapsed.value ? '72px' : '272px';
-    return { paddingLeft: pl, backgroundColor: 'var(--color-bg)' };
-});
+// Main content left padding — equal to sidebar width so content clears the fixed sidebar
+const mainStyle = computed(() => ({
+    backgroundColor: 'var(--color-bg)',
+    paddingLeft: isMobile.value
+        ? '0px'
+        : (sidebarCollapsed.value ? '72px' : '272px'),
+    transition: 'padding-left 300ms ease-out',
+}));
 
 function handleResize(): void {
     windowWidth.value = window.innerWidth;

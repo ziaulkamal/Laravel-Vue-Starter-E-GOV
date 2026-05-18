@@ -7,18 +7,19 @@
             class="nav-item"
             :class="[
                 itemDepthClass,
-                item.active ? 'nav-item--active' : 'nav-item--default',
+                isActive ? 'nav-item--active' : 'nav-item--default',
                 collapsed && depth === 0 ? 'nav-item--icon-only' : '',
             ]"
-            :style="item.active && depth === 0 ? activeItemStyle : ''"
+            :style="isActive && depth === 0 ? activeItemStyle : ''"
             :title="collapsed && depth === 0 ? item.label : ''"
             @click="item.onClick ? item.onClick() : undefined"
         >
-            <!-- Icon -->
+            <!-- Icon (root only) -->
             <span
+                v-if="depth === 0"
                 class="nav-icon"
                 :class="collapsed && depth === 0 ? 'nav-icon--collapsed' : ''"
-                :style="item.active && depth === 0 ? 'color: #fff;' : iconColorStyle"
+                :style="isActive && depth === 0 ? 'color: #fff;' : iconColorStyle"
             >
                 <component :is="item.icon" :size="iconSize" :stroke-width="1.8" />
             </span>
@@ -27,7 +28,7 @@
             <Transition name="slide-label">
                 <span v-if="showLabels" class="flex-1 min-w-0 truncate text-left">
                     {{ item.label }}
-                    <span v-if="item.subtitle" class="block text-[11px] mt-0.5 font-normal" :style="{ color: item.active ? 'rgba(255,255,255,0.75)' : '#9ca3af' }">
+                    <span v-if="item.subtitle" class="block text-[11px] mt-0.5 font-normal" :style="{ color: isActive ? 'rgba(255,255,255,0.75)' : '#9ca3af' }">
                         {{ item.subtitle }}
                     </span>
                 </span>
@@ -60,8 +61,9 @@
             :style="hasActiveChild && depth === 0 && !showLabels ? activeItemStyle : ''"
             @click="onDropdownClick"
         >
-            <!-- Icon -->
+            <!-- Icon (root only) -->
             <span
+                v-if="depth === 0"
                 class="nav-icon"
                 :class="collapsed && depth === 0 ? 'nav-icon--collapsed' : ''"
                 :style="(hasActiveChild && depth === 0 && !showLabels) ? 'color: #fff' : iconColorStyle"
@@ -97,7 +99,7 @@
         <!-- Children (accordion) -->
         <Transition name="accordion">
             <div v-if="isOpen && showLabels" class="overflow-hidden">
-                <div class="py-1 space-y-0.5">
+                <div class="py-0.5 space-y-0.5">
                     <NavItem
                         v-for="child in item.children"
                         :key="child.label"
@@ -109,6 +111,7 @@
                         :accent-color="accentColor"
                         :text-primary="textPrimary"
                         :text-muted="textMuted"
+                        :current-path="currentPath"
                         @toggle="$emit('toggle', $event)"
                         @expand-sidebar="$emit('expand-sidebar')"
                     />
@@ -143,12 +146,20 @@ const props = defineProps({
     accentColor: { type: String,  default: '#6366f1' },
     textPrimary: { type: String,  default: '#1e1b4b' },
     textMuted:   { type: String,  default: '#6b7280' },
+    currentPath: { type: String,  default: '' },
 });
 
 const emit = defineEmits(['toggle', 'expand-sidebar']);
 
 // Unique key for this dropdown item
 const itemKey = computed<string>(() => `${props.depth}-${props.item.label}`);
+
+// Active state computed from URL (overrides static prop)
+const isActive = computed<boolean>(() => {
+    if (!props.currentPath || !props.item.href) return !!props.item.active;
+    const path = props.item.href;
+    return props.currentPath === path || (path !== '/' && props.currentPath.startsWith(path));
+});
 
 const hasChildren = computed<boolean>(() => Array.isArray(props.item.children) && props.item.children!.length > 0);
 
@@ -191,7 +202,7 @@ const activeItemStyle = computed(() => ({
 }));
 
 const iconColorStyle = computed(() => ({
-    color: props.item.active || (hasActiveChild.value && !props.showLabels)
+    color: isActive.value || (hasActiveChild.value && !props.showLabels)
         ? props.accentColor
         : '#94a3b8',
 }));
@@ -235,14 +246,14 @@ function lighten(hex: string): string {
 }
 /* Child depth (1) */
 .nav-item--child {
-    padding: 6px 10px 6px 14px;
+    padding: 6px 10px 6px 36px;
     font-size: 0.8rem;
     color: #64748b;
     border-radius: 8px;
 }
 /* Grandchild depth (2) */
 .nav-item--grandchild {
-    padding: 5px 10px 5px 22px;
+    padding: 5px 10px 5px 52px;
     font-size: 0.775rem;
     color: #64748b;
     border-radius: 7px;
@@ -251,13 +262,13 @@ function lighten(hex: string): string {
 /* States */
 .nav-item--default:hover,
 .nav-item--open:hover {
-    background-color: rgba(99,102,241,0.07);
-    color: #1e1b4b;
+    background-color: rgba(99,102,241,0.09);
+    color: var(--color-text-primary);
 }
 
 .nav-item--open {
-    color: #1e1b4b;
-    background-color: rgba(99,102,241,0.06);
+    color: var(--color-text-primary);
+    background-color: rgba(99,102,241,0.07);
 }
 
 /* Icon-only (collapsed root) */

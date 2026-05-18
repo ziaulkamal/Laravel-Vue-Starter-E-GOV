@@ -1,58 +1,213 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+<div align="center">
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+# E-Gov CRM
 
-## About Laravel
+### Laravel + Tailwinds + Vue
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+A modern, fully-featured CRM UI Design System for government and enterprise applications.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Developed by **[Ziaul Kamal](https://github.com/ziaulkamal)**
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+[![Laravel](https://img.shields.io/badge/Laravel-13.x-FF2D20?style=flat&logo=laravel&logoColor=white)](https://laravel.com)
+[![Vue.js](https://img.shields.io/badge/Vue-3.x-42b883?style=flat&logo=vue.js&logoColor=white)](https://vuejs.org)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.x-38bdf8?style=flat&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![Inertia.js](https://img.shields.io/badge/Inertia.js-3.x-9553E9?style=flat)](https://inertiajs.com)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat)](LICENSE)
 
-## Learning Laravel
+</div>
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+---
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Overview
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+**E-Gov CRM** adalah starter kit UI yang dibangun di atas stack modern Laravel + Inertia.js + Vue 3 + TailwindCSS v4. Menyediakan sistem komponen lengkap, template halaman, dan layout shell yang dirancang untuk aplikasi CRM, dashboard administrasi, dan layanan berbasis pemerintahan digital.
 
-## Agentic Development
+Semua komponen dibangun dari scratch menggunakan Scoped CSS + CSS Custom Properties — tanpa dependensi UI library eksternal seperti Element Plus atau Vuetify.
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+---
 
-```bash
-composer require laravel/boost --dev
+## Tech Stack
 
-php artisan boost:install
+| Layer | Technology | Version |
+|---|---|---|
+| Backend | Laravel | 13.x |
+| Frontend Bridge | Inertia.js | 3.x |
+| UI Framework | Vue 3 (Composition API) | 3.5.x |
+| Language | TypeScript (strict mode) | 5.x |
+| Styling | TailwindCSS v4 (CSS-first) | 4.x |
+| Build Tool | Vite | 8.x |
+| Icons | @lucide/vue (tree-shakeable) | 1.x |
+| Charts | Chart.js + vue-chartjs | 4.x |
+| Fonts | DM Sans Variable, JetBrains Mono, Geist | — |
+
+---
+
+## Fitur Utama
+
+- **Dark Mode** — class-based via `.dark` pada `<html>`, disimpan ke `localStorage`, aurora animation di sidebar
+- **Sidebar Collapsible** — state persisten antar navigasi halaman, ikon-only mode di tablet
+- **Active Nav State** — auto-detect dari URL aktif via `usePage()`, dropdown auto-open untuk rute yang aktif
+- **Topbar** — search bar, theme toggle, notifikasi, user dropdown dengan animasi
+- **Responsive** — mobile drawer overlay, tablet icon-only, desktop full sidebar
+- **Icon Gallery** — 220+ ikon dari `@lucide/vue` dengan hover tooltip menampilkan kode import
+- **TypeScript Strict** — semua file `.vue`, composable, dan data menggunakan TypeScript penuh
+
+---
+
+## Komponen
+
+### Foundation (Batch 01)
+- Design tokens via `@theme` — color, radius, shadow, font, spacing
+- Dark mode CSS custom properties
+- `BaseLayout.vue` — shell layout dengan sidebar + topbar
+- `AuthLayout.vue` — layout terpusat untuk halaman autentikasi
+- `useTheme.ts` — composable dark mode dengan `localStorage`
+
+### Core UI (Batch 02) — 23 Komponen
+
+| Kategori | Komponen |
+|---|---|
+| Form | `AppButton`, `AppInput`, `AppTextarea`, `AppSelect`, `AppCheckbox`, `AppRadio`, `AppToggle` |
+| Display | `AppBadge`, `AppAvatar`, `AppSpinner`, `AppSkeleton`, `AppDivider`, `AppProgressBar` |
+| Feedback | `AppToast`, `AppAlert`, `AppModal`, `AppDrawer` |
+| Overlay | `AppTooltip`, `AppPopover`, `AppDropdown`, `AppContextMenu` |
+| Structure | `AppTabs`, `AppAccordion`, `AppBreadcrumb`, `AppCard`, `AppEmptyState` |
+
+### Dashboard Widgets (Batch 03)
+`KpiCard` · `RevenueChart` · `DealFunnelChart` · `ActivityFeed` · `QuickActionBar` · `RecentContactsWidget`
+
+### Fitur Kompleks (Batch 04) — 14 Komponen
+`DataTable` · `AppPagination` · `AppDatePicker` · `FileDropzone` · `WizardStepper` · `WizardForm` · `KanbanBoard` · `KanbanCard` · `MailLayout` · `MailListItem` · `MailCompose` · `ChatLayout` · `ChatBubble` · `ChatInput`
+
+---
+
+## Halaman
+
+| Route | Halaman | Deskripsi |
+|---|---|---|
+| `/` | Dashboard | KPI cards, revenue chart, deal pipeline, activity feed |
+| `/contacts` | Contacts | DataTable dengan filter, bulk select, status badge |
+| `/contacts/new` | New Contact | Wizard form 4 langkah |
+| `/contacts/:id` | Contact Detail | Profil, deals, timeline aktivitas |
+| `/kanban` | Kanban | Drag-and-drop CRM pipeline (5 kolom) |
+| `/mail` | Mail | 3-panel inbox: sidebar · list · thread |
+| `/chat` | Chat | Chat interface dengan date divider & read receipt |
+| `/settings` | Settings | Profile, notifikasi, keamanan, appearance |
+| `/icons` | Icon Gallery | 220+ ikon dengan hover tooltip kode import |
+| `/blocks` | Block Sections | Stat card, pricing, team, feature highlight, alert, empty state |
+| `/demo/datatable` | DataTable Demo | Sortable, filterable, paginated |
+| `/demo/datepicker` | DatePicker Demo | Single, range, constrained |
+| `/demo/dropzone` | Dropzone Demo | Upload dengan simulasi progress |
+| `/demo/wizard` | Wizard Demo | Multi-step form dengan review step |
+| `/login` | Login | Email + password, social buttons |
+| `/register` | Register | Password strength meter |
+| `/forgot-password` | Forgot Password | Form + sent confirmation state |
+| `/404` | 404 Error | Gradient text, blob dekoratif |
+| `/500` | 500 Error | Server error dengan random error ID |
+| `/ui` | UI Showcase | Preview live semua komponen Batch 02 |
+
+---
+
+## Struktur Proyek
+
+```
+resources/
+├── css/
+│   └── app.css                   # Design tokens (@theme), dark mode vars
+├── js/
+│   ├── app.ts                    # Entry point Inertia + Vue
+│   ├── Composables/
+│   │   ├── useTheme.ts           # Dark mode toggle + localStorage
+│   │   └── useToast.ts           # Global toast state
+│   ├── Components/
+│   │   ├── App/                  # Semua komponen UI reusable
+│   │   └── Dashboard/            # Widget khusus dashboard
+│   ├── data/
+│   │   └── navGroups.ts          # Data navigasi sidebar (shared)
+│   ├── Layouts/
+│   │   ├── BaseLayout.vue        # Layout utama (sidebar + topbar)
+│   │   └── AuthLayout.vue        # Layout halaman auth
+│   └── Pages/                    # Komponen halaman Inertia
+routes/
+└── web.php                       # Semua route aplikasi
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+---
 
-## Contributing
+## Instalasi
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Requirements
+- PHP 8.2+
+- Node.js 20+
+- Composer 2.x
 
-## Code of Conduct
+### Setup
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+# Clone repository
+git clone https://github.com/ziaulkamal/starter-laravel-tailwindcss.git
+cd starter-laravel-tailwindcss
 
-## Security Vulnerabilities
+# Install PHP dependencies
+composer install
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# Install Node dependencies
+npm install
 
-## License
+# Konfigurasi environment
+cp .env.example .env
+php artisan key:generate
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+# Jalankan development server
+php artisan serve
+
+# Di terminal terpisah
+npm run dev
+```
+
+### Production Build
+
+```bash
+npm run build
+```
+
+---
+
+## Konvensi Kode
+
+- **Dark mode:** class-based via `.dark` pada `<html>`, dikelola `useTheme.ts`
+- **Warna:** CSS custom properties (`--color-primary`, `--color-surface`, dst.)
+- **Penamaan komponen:** PascalCase `.vue`
+- **Composables:** prefix `use`, ekstensi `.ts`
+- **Styling:** Scoped CSS + CSS custom properties — tidak ada dynamic Tailwind string di computed
+- **Icons:** tree-shaken dari `@lucide/vue` — social/brand icon tidak tersedia
+- **Props:** selalu `type` + `default`, diketik dengan TypeScript runtime API
+
+---
+
+## Catatan Pengembangan
+
+Proyek ini dikembangkan dalam 5 batch berurutan:
+
+1. **Batch 01** — Design System & Foundation
+2. **Batch 02** — Core UI Components (23 komponen)
+3. **Batch 03** — Navigation Shell & Dashboard
+4. **Batch 04** — Complex Feature Components (14 komponen)
+5. **Batch 05** — Sample Pages & Polish (20 halaman)
+
+---
+
+## Lisensi
+
+MIT — Bebas digunakan untuk proyek personal maupun komersial.
+
+---
+
+<div align="center">
+
+**E-Gov CRM** &nbsp;·&nbsp; Laravel + Tailwinds + Vue
+
+Dikembangkan oleh **[Ziaul Kamal](https://github.com/ziaulkamal)**
+
+</div>

@@ -1,83 +1,53 @@
 <template>
     <BaseLayout :nav-groups="navGroups">
-        <div class="p-6">
+        <div class="dash">
             <!-- Page header -->
-            <div class="mb-6">
-                <h1 class="text-2xl font-bold" style="color: var(--color-text-primary); font-family: var(--font-heading);">
-                    Dashboard
-                </h1>
-                <p class="mt-1 text-sm" style="color: var(--color-text-muted);">
-                    Selamat datang di CRM Studio — Batch 01 selesai ✓
-                </p>
-            </div>
-
-            <!-- Status cards — placeholder Batch 01 -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div
-                    v-for="card in statusCards"
-                    :key="card.label"
-                    class="rounded-xl border p-5"
-                    style="background-color: var(--color-surface); border-color: var(--color-border);"
-                >
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs font-semibold uppercase tracking-wider" style="color: var(--color-text-muted);">
-                            {{ card.label }}
-                        </span>
-                        <div
-                            class="w-8 h-8 rounded-lg flex items-center justify-center"
-                            :style="{ backgroundColor: card.color + '18' }"
-                        >
-                            <component :is="card.icon" :size="16" :style="{ color: card.color }" />
-                        </div>
-                    </div>
-                    <div class="text-2xl font-bold" style="color: var(--color-text-primary); font-family: var(--font-heading);">
-                        {{ card.value }}
-                    </div>
-                    <div class="mt-1 text-xs" style="color: var(--color-text-muted);">
-                        {{ card.description }}
-                    </div>
+            <div class="dash__header">
+                <div>
+                    <h1 class="dash__title">Dashboard</h1>
+                    <p class="dash__sub">Good morning, Ziaul — here's what's happening today.</p>
+                </div>
+                <div class="dash__header-date">
+                    <CalendarIcon :size="13" />
+                    {{ today }}
                 </div>
             </div>
 
-            <!-- Batch status -->
-            <div
-                class="rounded-xl border p-6"
-                style="background-color: var(--color-surface); border-color: var(--color-border);"
-            >
-                <h2 class="text-base font-semibold mb-4" style="color: var(--color-text-primary);">
-                    Build Progress
-                </h2>
-                <div class="space-y-3">
-                    <div
-                        v-for="batch in batches"
-                        :key="batch.name"
-                        class="flex items-center gap-4"
-                    >
-                        <div
-                            class="flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0"
-                            :style="batch.done
-                                ? 'background-color: var(--color-success); color: #fff;'
-                                : 'background-color: var(--color-border); color: var(--color-text-muted);'"
-                        >
-                            {{ batch.done ? '✓' : batch.num }}
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="text-sm font-medium" style="color: var(--color-text-primary);">
-                                {{ batch.name }}
-                            </div>
-                            <div class="text-xs" style="color: var(--color-text-muted);">
-                                {{ batch.desc }}
-                            </div>
-                        </div>
-                        <span
-                            class="text-xs font-medium px-2 py-0.5 rounded-full"
-                            :style="batch.done
-                                ? 'background-color: var(--color-success-light); color: var(--color-success);'
-                                : 'background-color: var(--color-border); color: var(--color-text-muted);'"
-                        >
-                            {{ batch.done ? 'Done' : 'Pending' }}
-                        </span>
-                    </div>
+            <!-- Quick actions -->
+            <QuickActionBar :actions="quickActions" />
+
+            <!-- KPI grid -->
+            <div class="dash__kpi-grid">
+                <KpiCard
+                    v-for="kpi in kpiCards"
+                    :key="kpi.label"
+                    :label="kpi.label"
+                    :value="kpi.value"
+                    :sub="kpi.sub"
+                    :trend="kpi.trend"
+                    :color="kpi.color"
+                    :icon="kpi.icon"
+                    :sparkline="kpi.sparkline"
+                />
+            </div>
+
+            <!-- Charts row -->
+            <div class="dash__row dash__row--charts">
+                <div class="dash__col dash__col--wide">
+                    <RevenueChart />
+                </div>
+                <div class="dash__col dash__col--narrow">
+                    <DealFunnelChart />
+                </div>
+            </div>
+
+            <!-- Bottom row -->
+            <div class="dash__row dash__row--bottom">
+                <div class="dash__col dash__col--wide">
+                    <RecentContactsWidget />
+                </div>
+                <div class="dash__col dash__col--narrow">
+                    <ActivityFeed />
                 </div>
             </div>
         </div>
@@ -86,110 +56,150 @@
 
 <script setup lang="ts">
 import BaseLayout from '@/Layouts/BaseLayout.vue';
+import KpiCard             from '@/Components/Dashboard/KpiCard.vue';
+import QuickActionBar      from '@/Components/Dashboard/QuickActionBar.vue';
+import RevenueChart        from '@/Components/Dashboard/RevenueChart.vue';
+import DealFunnelChart     from '@/Components/Dashboard/DealFunnelChart.vue';
+import ActivityFeed        from '@/Components/Dashboard/ActivityFeed.vue';
+import RecentContactsWidget from '@/Components/Dashboard/RecentContactsWidget.vue';
+import { navGroups } from '@/data/navGroups';
+
 import {
-    Users, Kanban, Mail, MessageSquare, LayoutDashboard, Settings,
-    BarChart3, ShoppingCart, Package, FileText, BookOpen,
+    CalendarIcon, UserPlusIcon, PhoneCallIcon, FileTextIcon,
+    DollarSignIcon, TrendingUpIcon, Users, Mail,
 } from '@lucide/vue';
 
-interface NavItem {
-    label: string;
-    icon?: unknown;
-    href?: string;
-    badge?: string | number;
-    badgeColor?: string;
-    subtitle?: string;
-    active?: boolean;
-    children?: NavItem[];
-}
-
-interface NavGroup {
-    label?: string;
-    subtitle?: string;
-    color?: string;
-    items: NavItem[];
-}
-
-interface StatusCard {
+interface KpiCardData {
     label: string;
     value: string;
-    description: string;
-    icon: unknown;
+    sub: string;
+    trend: number;
     color: string;
+    icon: unknown;
+    sparkline: number[];
 }
 
-interface BatchItem {
-    num: string;
-    name: string;
-    desc: string;
-    done: boolean;
+interface QuickAction {
+    label: string;
+    icon: unknown;
+    color?: string;
+    onClick?: () => void;
 }
 
-const statusCards: StatusCard[] = [
-    { label: 'Contacts', value: '248',  description: '+12 this week', icon: Users,        color: '#6366f1' },
-    { label: 'Deals',    value: '34',   description: '+5 this week',  icon: Kanban,        color: '#10b981' },
-    { label: 'Emails',   value: '1.2k', description: '+89 today',     icon: Mail,          color: '#f59e0b' },
-    { label: 'Messages', value: '56',   description: '3 unread',      icon: MessageSquare, color: '#ec4899' },
+const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+const kpiCards: KpiCardData[] = [
+    {
+        label:     'Total Revenue',
+        value:     '$84,320',
+        sub:       '+18.2% vs last month',
+        trend:     18.2,
+        color:     '#6366f1',
+        icon:      DollarSignIcon,
+        sparkline: [4200, 5800, 6100, 7400, 6900, 8200, 9100, 8700, 7800, 9200, 10100, 11040],
+    },
+    {
+        label:     'Active Deals',
+        value:     '102',
+        sub:       '+5 opened this week',
+        trend:     8.4,
+        color:     '#10b981',
+        icon:      TrendingUpIcon,
+        sparkline: [62, 70, 75, 68, 80, 85, 90, 88, 94, 98, 100, 102],
+    },
+    {
+        label:     'Contacts',
+        value:     '2,481',
+        sub:       '+34 added this month',
+        trend:     4.1,
+        color:     '#f59e0b',
+        icon:      Users,
+        sparkline: [1800, 1920, 2050, 2100, 2200, 2280, 2310, 2350, 2400, 2430, 2460, 2481],
+    },
+    {
+        label:     'Emails Sent',
+        value:     '12.4k',
+        sub:       '+1.2k vs last week',
+        trend:     -3.6,
+        color:     '#ec4899',
+        icon:      Mail,
+        sparkline: [900, 1100, 950, 1200, 1050, 1300, 1100, 1250, 1400, 1000, 1150, 1200],
+    },
 ];
 
-const batches: BatchItem[] = [
-    { num: '1', name: 'Batch 01 — Design System & Foundation', desc: 'Tailwind tokens, fonts, layouts, dark mode, composables', done: true },
-    { num: '2', name: 'Batch 02 — Core UI Components', desc: '23 komponen atom & molecule', done: false },
-    { num: '3', name: 'Batch 03 — Navigation Shell & Dashboard', desc: 'Sidebar, Topbar, 6 dashboard widget', done: false },
-    { num: '4', name: 'Batch 04 — Complex Feature Components', desc: 'DataTable, Kanban, Mail, Chat, Wizard', done: false },
-    { num: '5', name: 'Batch 05 — Sample Pages & QA', desc: '11 sample page, audit responsive/dark/a11y', done: false },
+const quickActions: QuickAction[] = [
+    { label: 'Add Contact',   icon: UserPlusIcon,  color: '#6366f1' },
+    { label: 'Log Call',      icon: PhoneCallIcon, color: '#10b981' },
+    { label: 'New Proposal',  icon: FileTextIcon,  color: '#f59e0b' },
+    { label: 'Record Deal',   icon: DollarSignIcon,color: '#8b5cf6' },
 ];
 
-// Demo: single + dropdown + multi-dropdown
-const navGroups: NavGroup[] = [
-    {
-        label: '',
-        items: [
-            { label: 'Dashboard', icon: LayoutDashboard, href: '/', active: true },
-            { label: 'Analytics', icon: BarChart3,       href: '/analytics', active: false },
-        ],
-    },
-    {
-        label: 'Applications',
-        subtitle: 'Custom made application designs',
-        color: '#6366f1',
-        items: [
-            { label: 'Contacts',  icon: Users,         href: '/contacts', active: false },
-            { label: 'Inbox',     icon: Mail,          href: '/mail',     active: false, badge: '3', badgeColor: '#ef4444' },
-            { label: 'Chat',      icon: MessageSquare, href: '/chat',     active: false, subtitle: '3 unread messages' },
-            {
-                label: 'E-Commerce',
-                icon: ShoppingCart,
-                badge: 'NEW',
-                badgeColor: '#6366f1',
-                children: [
-                    { label: 'Products', icon: Package, href: '/products', active: false },
-                    { label: 'Orders',   icon: Kanban,  href: '/orders',   active: false },
-                ],
-            },
-            {
-                label: 'Pages',
-                icon: FileText,
-                children: [
-                    {
-                        label: 'Blog',
-                        icon: BookOpen,
-                        children: [
-                            { label: 'All Posts', href: '/blog',        active: false },
-                            { label: 'Create',    href: '/blog/create', active: false },
-                        ],
-                    },
-                    { label: 'Landing', icon: FileText, href: '/landing', active: false },
-                ],
-            },
-        ],
-    },
-    {
-        label: 'System',
-        color: '#64748b',
-        items: [
-            { label: 'Settings',     icon: Settings,       href: '/settings', active: false },
-            { label: 'UI Showcase',  icon: LayoutDashboard, href: '/ui',      active: false, badge: 'DEV', badgeColor: '#8b5cf6' },
-        ],
-    },
-];
 </script>
+
+<style scoped>
+.dash {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 24px;
+    max-width: 1400px;
+}
+
+.dash__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+.dash__title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--color-text-primary);
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
+}
+.dash__sub {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin-top: 3px;
+}
+.dash__header-date {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--color-text-subtle);
+    background: var(--color-surface);
+    border: 1.5px solid var(--color-border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.dash__kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.dash__row {
+    display: grid;
+    gap: 16px;
+}
+.dash__row--charts { grid-template-columns: 3fr 2fr; }
+.dash__row--bottom { grid-template-columns: 3fr 2fr; }
+
+.dash__col { min-width: 0; }
+
+@media (max-width: 1100px) {
+    .dash__kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .dash__row--charts,
+    .dash__row--bottom { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+    .dash__kpi-grid { grid-template-columns: 1fr; }
+    .dash { padding: 16px; }
+}
+</style>
