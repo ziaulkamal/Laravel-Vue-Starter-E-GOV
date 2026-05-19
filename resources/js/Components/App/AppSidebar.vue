@@ -10,6 +10,7 @@
 
     <!-- ── Sidebar ── -->
     <aside
+        ref="sidebarEl"
         :class="[
             'app-sidebar flex flex-col transition-all duration-300 ease-out select-none',
             isMobile
@@ -18,6 +19,9 @@
         ]"
         :style="[sidebarStyle, { width: (collapsed && !isMobile ? SIDEBAR_W_COLLAPSED : SIDEBAR_W_EXPANDED) + 'px' }]"
     >
+        <!-- Sliding hover indicator -->
+        <div class="nav-sliding-indicator" :style="indicatorStyle" />
+
         <!-- Aurora overlay (dark mode only) -->
         <div v-if="isDark" class="sidebar-aurora" aria-hidden="true">
             <div class="sidebar-aurora__blob sidebar-aurora__blob--1" />
@@ -42,7 +46,13 @@
         </div>
 
         <!-- ── Nav ── -->
-        <nav class="flex-1 overflow-y-auto overflow-x-hidden py-2" :class="showLabels ? 'px-3' : 'px-2'">
+        <nav
+            ref="navEl"
+            class="flex-1 overflow-y-auto overflow-x-hidden py-2"
+            :class="showLabels ? 'px-3' : 'px-2'"
+            @mouseover="onNavMouseover"
+            @mouseleave="onNavMouseleave"
+        >
 
             <template v-for="(section, si) in navGroups" :key="si">
 
@@ -143,7 +153,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { ChevronLeft } from '@lucide/vue';
 import { SIDEBAR_W_EXPANDED, SIDEBAR_W_COLLAPSED } from '@/config/layout';
@@ -233,6 +243,66 @@ function handleToggle(key: string): void {
 function onExpandSidebar(): void {}
 
 const showLabels = computed<boolean>(() => !props.collapsed || props.isMobile);
+
+// ── Sliding hover indicator ──
+const sidebarEl  = ref<HTMLElement | null>(null);
+const navEl      = ref<HTMLElement | null>(null);
+const indTop     = ref(0);
+const indLeft    = ref(0);
+const indWidth   = ref(0);
+const indHeight  = ref(0);
+const indVisible = ref(false);
+let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
+const indicatorStyle = computed(() => ({
+    position:   'absolute' as const,
+    zIndex:     '0',
+    top:        indTop.value    + 'px',
+    left:       indLeft.value   + 'px',
+    width:      indWidth.value  + 'px',
+    height:     indHeight.value + 'px',
+    opacity:    indVisible.value ? '1' : '0',
+    background: props.isDark ? 'rgba(99,102,241,0.14)' : 'rgba(99,102,241,0.09)',
+}));
+
+function placeAt(itemEl: HTMLElement) {
+    if (!sidebarEl.value) return;
+    const sb = sidebarEl.value.getBoundingClientRect();
+    const it = itemEl.getBoundingClientRect();
+    indTop.value    = it.top    - sb.top;
+    indLeft.value   = it.left   - sb.left;
+    indWidth.value  = it.width;
+    indHeight.value = it.height;
+    indVisible.value = true;
+}
+
+function onNavMouseover(e: MouseEvent) {
+    if (hideTimer !== null) { clearTimeout(hideTimer); hideTimer = null; }
+    const target = (e.target as HTMLElement).closest('.nav-item--root') as HTMLElement | null;
+    if (!target || target.classList.contains('nav-item--active')) {
+        indVisible.value = false;
+        return;
+    }
+    placeAt(target);
+}
+
+function onNavMouseleave() {
+    const activeEl = navEl.value?.querySelector('.nav-item--active') as HTMLElement | null;
+    if (activeEl && indVisible.value) {
+        placeAt(activeEl);
+        hideTimer = setTimeout(() => { indVisible.value = false; hideTimer = null; }, 210);
+    } else {
+        indVisible.value = false;
+    }
+}
+
+onMounted(async () => {
+    await nextTick();
+    const activeEl = navEl.value?.querySelector('.nav-item--active') as HTMLElement | null;
+    if (activeEl) { placeAt(activeEl); indVisible.value = false; }
+});
+
+onUnmounted(() => { if (hideTimer !== null) clearTimeout(hideTimer); });
 
 // ── Design tokens (reactive on isDark) ──
 const accentColor = '#6366f1';
@@ -392,4 +462,16 @@ const iconGroupStyle = computed<Record<string, string>>(() => ({
     overflow: hidden; max-width: 220px;
 }
 .slide-label-enter-from, .slide-label-leave-to { opacity: 0; max-width: 0; }
+
+/* ── Sliding hover indicator ── */
+.nav-sliding-indicator {
+    pointer-events: none;
+    border-radius: 10px;
+    transition:
+        top    180ms cubic-bezier(0.4, 0, 0.2, 1),
+        left   180ms cubic-bezier(0.4, 0, 0.2, 1),
+        width  150ms ease,
+        height 150ms ease,
+        opacity 150ms ease;
+}
 </style>

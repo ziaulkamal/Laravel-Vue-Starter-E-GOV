@@ -51,6 +51,7 @@
     <template v-else>
         <!-- Dropdown trigger -->
         <button
+            ref="dropdownTriggerRef"
             class="nav-item"
             :class="[
                 itemDepthClass,
@@ -59,6 +60,8 @@
             ]"
             :title="collapsed && depth === 0 ? item.label : ''"
             :style="hasActiveChild && depth === 0 && !showLabels ? activeItemStyle : ''"
+            @mouseenter="collapsed && depth === 0 ? openFlyout($event) : undefined"
+            @mouseleave="collapsed && depth === 0 ? scheduleFlyoutClose() : undefined"
             @click="onDropdownClick"
         >
             <!-- Icon (root only) -->
@@ -118,12 +121,70 @@
                 </div>
             </div>
         </Transition>
+
+        <!-- Flyout popout (collapsed mode only) -->
+        <Teleport to="body">
+            <Transition name="flyout">
+                <div
+                    v-if="flyoutOpen && collapsed && depth === 0"
+                    class="nav-flyout"
+                    :class="{ 'nav-flyout--dark': isDark }"
+                    :style="flyoutStyle"
+                    @mouseenter="cancelFlyoutClose"
+                    @mouseleave="scheduleFlyoutClose"
+                >
+                    <p class="nav-flyout__title">{{ item.label }}</p>
+                    <template v-for="child in item.children" :key="child.label">
+                        <!-- Direct link -->
+                        <a
+                            v-if="child.href"
+                            :href="child.href"
+                            class="nav-flyout__item"
+                            :class="{ 'nav-flyout__item--active': isChildActive(child.href) }"
+                        >
+                            <component v-if="child.icon" :is="child.icon" :size="14" stroke-width="1.8" />
+                            <span>{{ child.label }}</span>
+                        </a>
+                        <!-- Nested group (accordion) -->
+                        <div v-else>
+                            <button
+                                class="nav-flyout__item nav-flyout__group-toggle"
+                                @click.stop="toggleFlyoutGroup(child.label)"
+                            >
+                                <component v-if="child.icon" :is="child.icon" :size="14" stroke-width="1.8" />
+                                <span class="flex-1 text-left">{{ child.label }}</span>
+                                <ChevronRight
+                                    :size="12"
+                                    stroke-width="2.5"
+                                    class="nav-flyout__chevron"
+                                    :class="{ 'nav-flyout__chevron--open': flyoutOpenGroups.includes(child.label) }"
+                                />
+                            </button>
+                            <Transition name="flyout-accordion">
+                                <div v-if="flyoutOpenGroups.includes(child.label)" class="overflow-hidden">
+                                    <a
+                                        v-for="gc in child.children"
+                                        :key="gc.label"
+                                        :href="gc.href ?? '#'"
+                                        class="nav-flyout__item nav-flyout__item--nested"
+                                        :class="{ 'nav-flyout__item--active': isChildActive(gc.href) }"
+                                    >
+                                        <span>{{ gc.label }}</span>
+                                    </a>
+                                </div>
+                            </Transition>
+                        </div>
+                    </template>
+                </div>
+            </Transition>
+        </Teleport>
     </template>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, onUnmounted } from 'vue';
 import { ChevronRight } from '@lucide/vue';
+import { useTheme } from '@/Composables/useTheme';
 
 interface NavItem {
     label: string;
@@ -150,6 +211,57 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['toggle', 'expand-sidebar']);
+
+const { isDark } = useTheme();
+
+// ── Flyout (collapsed dropdown popout) ──
+const flyoutOpen         = ref(false);
+const flyoutPos          = ref({ top: 0, left: 0 });
+const dropdownTriggerRef = ref<HTMLElement | null>(null);
+const flyoutOpenGroups   = ref<string[]>([]); // accordion state inside flyout
+let closeTimer: ReturnType<typeof setTimeout> | null = null;
+
+const flyoutStyle = computed(() => ({
+    top:  flyoutPos.value.top  + 'px',
+    left: flyoutPos.value.left + 8 + 'px',
+}));
+
+function initFlyoutGroups() {
+    // Auto-open groups that contain the active page
+    flyoutOpenGroups.value = (props.item.children ?? [])
+        .filter(c => c.children?.some(gc => isChildActive(gc.href)))
+        .map(c => c.label);
+}
+
+function toggleFlyoutGroup(label: string) {
+    const i = flyoutOpenGroups.value.indexOf(label);
+    i >= 0 ? flyoutOpenGroups.value.splice(i, 1) : flyoutOpenGroups.value.push(label);
+}
+
+function openFlyout(e?: MouseEvent) {
+    cancelFlyoutClose();
+    const el = e ? (e.currentTarget as HTMLElement) : dropdownTriggerRef.value;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    flyoutPos.value = { top: rect.top, left: rect.right };
+    initFlyoutGroups();
+    flyoutOpen.value = true;
+}
+
+function scheduleFlyoutClose() {
+    closeTimer = setTimeout(() => { flyoutOpen.value = false; }, 150);
+}
+
+function cancelFlyoutClose() {
+    if (closeTimer !== null) { clearTimeout(closeTimer); closeTimer = null; }
+}
+
+function isChildActive(href?: string): boolean {
+    if (!href) return false;
+    return props.currentPath === href || (href !== '/' && props.currentPath.startsWith(href));
+}
+
+onUnmounted(() => { if (closeTimer !== null) clearTimeout(closeTimer); });
 
 // Unique key for this dropdown item
 const itemKey = computed<string>(() => `${props.depth}-${props.item.label}`);
@@ -179,8 +291,8 @@ function checkActiveChild(children: NavItem[]): boolean {
 }
 
 function onDropdownClick(): void {
-    if (props.collapsed && props.depth === 0) {
-        emit('expand-sidebar');
+    if (props.collapsed && props.depth === 0 && hasChildren.value) {
+        flyoutOpen.value ? (flyoutOpen.value = false) : openFlyout();
         return;
     }
     emit('toggle', itemKey.value);
@@ -196,9 +308,9 @@ const itemDepthClass = computed<string>(() => {
 });
 
 const activeItemStyle = computed(() => ({
-    background: `linear-gradient(135deg, ${props.accentColor} 0%, ${lighten(props.accentColor)} 100%)`,
+    background: `linear-gradient(180deg, ${lighten(props.accentColor)} 0%, ${props.accentColor} 100%)`,
     color: '#ffffff',
-    boxShadow: `0 4px 12px ${props.accentColor}40`,
+    boxShadow: `0 2px 8px ${props.accentColor}55`,
 }));
 
 const iconColorStyle = computed(() => ({
@@ -273,8 +385,8 @@ function lighten(hex: string): string {
 
 /* Icon-only (collapsed root) */
 .nav-item--icon-only {
-    width: 44px;
-    height: 44px;
+    width: 38px;
+    height: 40px;
     padding: 0;
     border-radius: 12px;
     justify-content: center;
@@ -332,4 +444,102 @@ function lighten(hex: string): string {
 }
 .slide-label-enter-from,
 .slide-label-leave-to { opacity: 0; max-width: 0; }
+
+/* ── Flyout popout panel ── */
+.nav-flyout {
+    position: fixed;
+    z-index: 200;
+    min-width: 190px;
+    padding: 6px;
+    background: #ffffff;
+    border: 1.5px solid rgba(99,102,241,0.15);
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+}
+.nav-flyout--dark {
+    background: #1e293b;
+    border-color: rgba(99,102,241,0.25);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.nav-flyout__title {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+    padding: 4px 10px 6px;
+}
+
+.nav-flyout__group-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    padding: 6px 10px 2px;
+}
+
+.nav-flyout__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #475569;
+    text-decoration: none;
+    background: transparent;
+    transition: background 120ms ease, color 120ms ease;
+}
+.nav-flyout--dark .nav-flyout__item { color: #cbd5e1; }
+
+.nav-flyout__item:hover {
+    background: rgba(99,102,241,0.09);
+    color: #6366f1;
+}
+.nav-flyout--dark .nav-flyout__item:hover {
+    background: rgba(99,102,241,0.18);
+    color: #a5b4fc;
+}
+
+.nav-flyout__item--active {
+    background: rgba(99,102,241,0.1);
+    color: #6366f1;
+    font-weight: 600;
+}
+.nav-flyout--dark .nav-flyout__item--active {
+    background: rgba(99,102,241,0.22);
+    color: #a5b4fc;
+}
+
+.nav-flyout__item--nested { padding-left: 22px; font-size: 12.5px; }
+
+.nav-flyout__group-toggle {
+    width: 100%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.nav-flyout__chevron {
+    color: #94a3b8;
+    flex-shrink: 0;
+    transition: transform 200ms ease;
+}
+.nav-flyout__chevron--open { transform: rotate(90deg); }
+
+/* Accordion inside flyout */
+.flyout-accordion-enter-active,
+.flyout-accordion-leave-active {
+    transition: max-height 220ms cubic-bezier(.4,0,.2,1), opacity 180ms ease;
+    max-height: 300px;
+    overflow: hidden;
+}
+.flyout-accordion-enter-from,
+.flyout-accordion-leave-to { max-height: 0; opacity: 0; }
+
+/* Flyout animation */
+.flyout-enter-active { transition: opacity 130ms ease, transform 130ms ease; }
+.flyout-leave-active { transition: opacity 90ms ease, transform 90ms ease; }
+.flyout-enter-from, .flyout-leave-to { opacity: 0; transform: translateX(-6px) scale(0.97); }
 </style>
