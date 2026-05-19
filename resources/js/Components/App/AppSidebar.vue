@@ -245,8 +245,9 @@ const textMuted   = computed(() => props.isDark ? '#64748b'        : '#6b7280');
 const sidebarStyle = computed(() => ({
     backgroundColor: sidebarBg.value,
     borderRight: `1px solid ${borderColor.value}`,
-    // position diatur via CSS class (sticky desktop / fixed mobile)
-    // overflow: hidden untuk clip aurora blobs, nav bagian dalam yang handle scroll
+    // position & height diatur via CSS class .app-sidebar
+    // overflow: hidden clips aurora blobs di luar bounds sidebar.
+    // Scrollbar nav tetap terlihat karena ada di DALAM bounding box sidebar.
     overflow: 'hidden',
 }));
 
@@ -262,16 +263,20 @@ const iconGroupStyle = computed<Record<string, string>>(() => ({
 /* ── Sidebar positioning ── */
 
 /* ──────────────────────────────────────────────────────────────
-   Desktop (≥ 768px): sticky dalam flex row di bawah topbar
-   Nav bagian dalam sudah punya overflow-y: auto → scrollbar ada di nav
+   Desktop (≥ 768px):
+   - sticky top:0 → sidebar mulai dari paling atas, sejajar dengan topbar
+   - height:100vh → full tinggi viewport
+   - Nav bagian dalam (flex-1 + overflow-y:auto) yang scroll,
+     bukan sidebar-nya sendiri
    ────────────────────────────────────────────────────────────── */
 .app-sidebar {
     position: sticky;
-    top: 56px;               /* = TOPBAR_HEIGHT — edit di config/layout.ts */
-    height: calc(100vh - 56px);
+    top: 0;
+    height: 100vh;
     flex-shrink: 0;
     z-index: 20;
-    /* overflow diatur via sidebarStyle inline (overflow:hidden) agar aurora ter-clip */
+    /* overflow: hidden diatur via sidebarStyle inline agar aurora ter-clip,
+       tapi scrollbar nav tetap terlihat karena ada di dalam sidebar */
 }
 
 /* ──────────────────────────────────────────────────────────────

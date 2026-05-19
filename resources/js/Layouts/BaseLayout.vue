@@ -1,34 +1,42 @@
 <template>
+    <!--
+        Layout struktur (flex row):
+        ┌───────────────┬──────────────────────────────────────┐
+        │  Sidebar      │  [Topbar sticky dalam kolom kanan]   │
+        │  sticky       ├──────────────────────────────────────┤
+        │  full height  │  Page content                        │
+        │  (scrollbar)  │                                      │
+        └───────────────┴──────────────────────────────────────┘
+    -->
     <div :class="{ dark: isDark }" class="layout-root">
 
-        <!-- ── Topbar: sticky full-width, selalu di atas ── -->
-        <AppTopbar
-            :sidebar-collapsed="sidebarCollapsed"
-            :is-dark="isDark"
+        <!-- ── Sidebar: kolom kiri, sticky full height ── -->
+        <AppSidebar
+            v-model:collapsed="sidebarCollapsed"
+            v-model:mobile-open="sidebarMobileOpen"
+            :nav-groups="resolvedNavGroups"
             :user="user"
-            :notification-count="notificationCount"
             :is-mobile="isMobile"
-            @toggle-sidebar="toggleSidebar"
-            @toggle-theme="toggleTheme"
-            @open-notifications="$emit('open-notifications')"
+            :is-dark="isDark"
+            :app-name="appName"
+            :app-subtitle="appSubtitle"
+            @update:collapsed="onCollapsedChange"
         />
 
-        <!-- ── Body: sidebar (sticky) + konten (flex-1) ── -->
-        <div class="layout-body">
-            <AppSidebar
-                v-model:collapsed="sidebarCollapsed"
-                v-model:mobile-open="sidebarMobileOpen"
-                :nav-groups="resolvedNavGroups"
-                :user="user"
-                :is-mobile="isMobile"
+        <!-- ── Kolom kanan: topbar + konten ── -->
+        <div class="layout-right">
+            <AppTopbar
+                :sidebar-collapsed="sidebarCollapsed"
                 :is-dark="isDark"
-                :app-name="appName"
-                :app-subtitle="appSubtitle"
-                @update:collapsed="onCollapsedChange"
+                :user="user"
+                :notification-count="notificationCount"
+                :is-mobile="isMobile"
+                @toggle-sidebar="toggleSidebar"
+                @toggle-theme="toggleTheme"
+                @open-notifications="$emit('open-notifications')"
             />
 
-            <!-- Konten halaman -->
-            <main class="layout-main" :style="{ backgroundColor: 'var(--color-bg)' }">
+            <main class="layout-main">
                 <slot />
             </main>
         </div>
@@ -209,25 +217,25 @@ const defaultNavGroups: NavGroup[] = [
 </script>
 
 <style scoped>
-/* Root: block container, full viewport height */
+/* Root: flex ROW — sidebar kiri, konten kanan */
 .layout-root {
+    display: flex;
     min-height: 100vh;
     background-color: var(--color-bg);
-    display: flex;
-    flex-direction: column;
 }
 
-/* Body row: sidebar sticky + main content */
-.layout-body {
-    display: flex;
-    align-items: flex-start;
-    flex: 1;
-}
-
-/* Main content: fills remaining width */
-.layout-main {
+/* Kolom kanan: topbar sticky + page content */
+.layout-right {
     flex: 1;
     min-width: 0;
-    min-height: calc(100vh - 56px); /* 56px = TOPBAR_HEIGHT */
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: var(--color-bg);
+}
+
+/* Page content: fills remaining height */
+.layout-main {
+    flex: 1;
 }
 </style>
