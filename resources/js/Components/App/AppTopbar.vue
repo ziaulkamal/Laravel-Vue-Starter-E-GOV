@@ -198,7 +198,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onClickOutside));
 
 <style scoped>
 .topbar {
-    position: sticky; top: 0; z-index: 10;
+    position: sticky; top: 0; z-index: 40; /* di atas sidebar (z-20 desktop, z-30 mobile) */
     display: flex; align-items: center; justify-content: space-between;
     height: 56px; border-bottom: 1px solid;
     padding: 0 12px 0 0;

@@ -11,13 +11,12 @@
     <!-- ── Sidebar ── -->
     <aside
         :class="[
-            'fixed inset-y-0 left-0 z-30 flex flex-col transition-all duration-300 ease-out select-none',
-            collapsed && !isMobile ? 'w-[72px]' : 'w-[272px]',
+            'app-sidebar flex flex-col transition-all duration-300 ease-out select-none',
             isMobile
-                ? mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
-                : 'translate-x-0',
+                ? (mobileOpen ? 'app-sidebar--mobile-open' : 'app-sidebar--mobile-closed')
+                : '',
         ]"
-        :style="sidebarStyle"
+        :style="[sidebarStyle, { width: (collapsed && !isMobile ? SIDEBAR_W_COLLAPSED : SIDEBAR_W_EXPANDED) + 'px' }]"
     >
         <!-- Aurora overlay (dark mode only) -->
         <div v-if="isDark" class="sidebar-aurora" aria-hidden="true">
@@ -147,6 +146,7 @@
 import { ref, computed, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { ChevronLeft } from '@lucide/vue';
+import { SIDEBAR_W_EXPANDED, SIDEBAR_W_COLLAPSED } from '@/config/layout';
 import NavItem    from './NavItem.vue';
 import UserAvatar from './UserAvatar.vue';
 
@@ -245,7 +245,8 @@ const textMuted   = computed(() => props.isDark ? '#64748b'        : '#6b7280');
 const sidebarStyle = computed(() => ({
     backgroundColor: sidebarBg.value,
     borderRight: `1px solid ${borderColor.value}`,
-    position: 'relative' as const,
+    // position diatur via CSS class (sticky desktop / fixed mobile)
+    // overflow: hidden untuk clip aurora blobs, nav bagian dalam yang handle scroll
     overflow: 'hidden',
 }));
 
@@ -258,6 +259,35 @@ const iconGroupStyle = computed<Record<string, string>>(() => ({
 </script>
 
 <style scoped>
+/* ── Sidebar positioning ── */
+
+/* ──────────────────────────────────────────────────────────────
+   Desktop (≥ 768px): sticky dalam flex row di bawah topbar
+   Nav bagian dalam sudah punya overflow-y: auto → scrollbar ada di nav
+   ────────────────────────────────────────────────────────────── */
+.app-sidebar {
+    position: sticky;
+    top: 56px;               /* = TOPBAR_HEIGHT — edit di config/layout.ts */
+    height: calc(100vh - 56px);
+    flex-shrink: 0;
+    z-index: 20;
+    /* overflow diatur via sidebarStyle inline (overflow:hidden) agar aurora ter-clip */
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Mobile (< 768px): fixed overlay slide dari kiri
+   ────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+    .app-sidebar {
+        position: fixed;
+        top: 0; bottom: 0; left: 0;
+        height: 100dvh;
+        z-index: 30;
+    }
+    .app-sidebar--mobile-open  { transform: translateX(0); box-shadow: 0 0 40px rgba(0,0,0,0.35); }
+    .app-sidebar--mobile-closed { transform: translateX(-100%); }
+}
+
 .sidebar-logo {
     width: 38px; height: 38px; border-radius: 12px;
     background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%);

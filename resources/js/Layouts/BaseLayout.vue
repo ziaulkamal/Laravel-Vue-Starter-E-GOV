@@ -1,38 +1,34 @@
 <template>
-    <div class="flex h-full min-h-screen" :class="{ dark: isDark }">
+    <div :class="{ dark: isDark }" class="layout-root">
 
-        <!-- Sidebar -->
-        <AppSidebar
-            v-model:collapsed="sidebarCollapsed"
-            v-model:mobile-open="sidebarMobileOpen"
-            :nav-groups="resolvedNavGroups"
-            :user="user"
-            :is-mobile="isMobile"
+        <!-- ── Topbar: sticky full-width, selalu di atas ── -->
+        <AppTopbar
+            :sidebar-collapsed="sidebarCollapsed"
             :is-dark="isDark"
-            :app-name="appName"
-            :app-subtitle="appSubtitle"
-            @update:collapsed="onCollapsedChange"
+            :user="user"
+            :notification-count="notificationCount"
+            :is-mobile="isMobile"
+            @toggle-sidebar="toggleSidebar"
+            @toggle-theme="toggleTheme"
+            @open-notifications="$emit('open-notifications')"
         />
 
-        <!-- Main area — inline style agar dynamic width tidak bergantung pada Tailwind JIT -->
-        <div
-            class="flex flex-col flex-1 min-w-0 transition-all duration-300 ease-out"
-            :style="mainStyle"
-        >
-            <!-- Topbar -->
-            <AppTopbar
-                :sidebar-collapsed="sidebarCollapsed"
-                :is-dark="isDark"
+        <!-- ── Body: sidebar (sticky) + konten (flex-1) ── -->
+        <div class="layout-body">
+            <AppSidebar
+                v-model:collapsed="sidebarCollapsed"
+                v-model:mobile-open="sidebarMobileOpen"
+                :nav-groups="resolvedNavGroups"
                 :user="user"
-                :notification-count="notificationCount"
                 :is-mobile="isMobile"
-                @toggle-sidebar="toggleSidebar"
-                @toggle-theme="toggleTheme"
-                @open-notifications="$emit('open-notifications')"
+                :is-dark="isDark"
+                :app-name="appName"
+                :app-subtitle="appSubtitle"
+                @update:collapsed="onCollapsedChange"
             />
 
-            <!-- Page content -->
-            <main class="flex-1 overflow-auto">
+            <!-- Konten halaman -->
+            <main class="layout-main" :style="{ backgroundColor: 'var(--color-bg)' }">
                 <slot />
             </main>
         </div>
@@ -45,10 +41,10 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useTheme } from '@/Composables/useTheme';
 import AppSidebar from '@/Components/App/AppSidebar.vue';
 import AppTopbar  from '@/Components/App/AppTopbar.vue';
+import { BREAKPOINT_MOBILE, BREAKPOINT_TABLET } from '@/config/layout';
 import {
     LayoutDashboard, Users, Kanban, Mail, MessageSquare,
-    Settings, BarChart3, CalendarDays, Star,
-    Package, ShoppingCart, FileText, BookOpen,
+    Settings, BarChart3, Package, ShoppingCart, FileText, BookOpen,
 } from '@lucide/vue';
 
 interface NavItem {
@@ -71,8 +67,6 @@ interface NavGroup {
 }
 
 type LayoutUser = { name?: string; email?: string; avatar?: string } | null;
-type TopbarShortcut = { label: string; icon: unknown; onClick?: () => void };
-
 // ── Props ──────────────────────────────────────────────────────
 const props = defineProps({
     navGroups:         { type: Array as () => NavGroup[] | null, default: null },
@@ -80,7 +74,6 @@ const props = defineProps({
     appName:           { type: String, default: 'E-Gov CRM' },
     appSubtitle:       { type: String, default: 'Laravel + Tailwinds + Vue' },
     notificationCount: { type: Number, default: 0 },
-    topbarShortcuts:   { type: Array as () => TopbarShortcut[] | null, default: null },
 });
 
 defineEmits(['open-search', 'open-notifications', 'open-user-menu']);
@@ -89,12 +82,10 @@ defineEmits(['open-search', 'open-notifications', 'open-user-menu']);
 const { isDark, toggleTheme } = useTheme();
 
 // ── Responsive breakpoints ─────────────────────────────────────
-// mobile  < 768px  → drawer overlay
-// tablet  768–1023 → always collapsed (icon-only), no drawer
-// desktop ≥ 1024px → user-controlled collapse
+// Nilai breakpoint diambil dari @/config/layout — edit di sana untuk mengubah
 const windowWidth       = ref<number>(typeof window !== 'undefined' ? window.innerWidth : 1280);
-const isMobile          = computed<boolean>(() => windowWidth.value < 768);
-const isTablet          = computed<boolean>(() => windowWidth.value >= 768 && windowWidth.value < 1024);
+const isMobile          = computed<boolean>(() => windowWidth.value < BREAKPOINT_MOBILE);
+const isTablet          = computed<boolean>(() => windowWidth.value >= BREAKPOINT_MOBILE && windowWidth.value < BREAKPOINT_TABLET);
 
 // Sidebar state — persisted to localStorage
 const SIDEBAR_KEY = 'crm_sidebar_collapsed';
@@ -127,14 +118,6 @@ function onCollapsedChange(val: boolean): void {
     sidebarCollapsed.value = val;
 }
 
-// Main content left padding — equal to sidebar width so content clears the fixed sidebar
-const mainStyle = computed(() => ({
-    backgroundColor: 'var(--color-bg)',
-    paddingLeft: isMobile.value
-        ? '0px'
-        : (sidebarCollapsed.value ? '5px' : '2px'),
-    transition: 'padding-left 300ms ease-out',
-}));
 
 function handleResize(): void {
     windowWidth.value = window.innerWidth;
@@ -143,16 +126,8 @@ function handleResize(): void {
 onMounted(() => window.addEventListener('resize', handleResize));
 onUnmounted(() => window.removeEventListener('resize', handleResize));
 
-// ── Nav & shortcuts ────────────────────────────────────────────
+// ── Nav ────────────────────────────────────────────────────────
 const resolvedNavGroups = computed<NavGroup[]>(() => props.navGroups ?? defaultNavGroups);
-const resolvedShortcuts = computed<TopbarShortcut[]>(() => props.topbarShortcuts ?? defaultShortcuts);
-
-const defaultShortcuts: TopbarShortcut[] = [
-    { label: 'Calendar',  icon: CalendarDays },
-    { label: 'Mail',      icon: Mail },
-    { label: 'Contacts',  icon: Users },
-    { label: 'Favorites', icon: Star },
-];
 
 const defaultNavGroups: NavGroup[] = [
     {
@@ -232,3 +207,27 @@ const defaultNavGroups: NavGroup[] = [
     },
 ];
 </script>
+
+<style scoped>
+/* Root: block container, full viewport height */
+.layout-root {
+    min-height: 100vh;
+    background-color: var(--color-bg);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Body row: sidebar sticky + main content */
+.layout-body {
+    display: flex;
+    align-items: flex-start;
+    flex: 1;
+}
+
+/* Main content: fills remaining width */
+.layout-main {
+    flex: 1;
+    min-width: 0;
+    min-height: calc(100vh - 56px); /* 56px = TOPBAR_HEIGHT */
+}
+</style>
