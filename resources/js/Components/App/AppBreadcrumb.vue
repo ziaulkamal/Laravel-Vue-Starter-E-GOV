@@ -36,24 +36,3 @@ defineProps({
 });
 </script>
 
-<style scoped>
-.app-breadcrumb { }
-.app-breadcrumb__list {
-    display: flex; align-items: center; flex-wrap: wrap;
-    list-style: none; margin: 0; padding: 0; gap: 2px;
-}
-.app-breadcrumb__item {
-    display: flex; align-items: center; gap: 2px;
-}
-.app-breadcrumb__sep { display: flex; align-items: center; color: var(--color-text-subtle); }
-.app-breadcrumb__link {
-    font-size: 13px; color: var(--color-text-muted);
-    text-decoration: none; padding: 2px 4px; border-radius: 4px;
-    transition: color 120ms ease, background 120ms ease;
-}
-.app-breadcrumb__link:hover { color: var(--color-text-primary); background: var(--color-bg-subtle); }
-.app-breadcrumb__current {
-    font-size: 13px; color: var(--color-text-primary); font-weight: 500;
-    padding: 2px 4px;
-}
-</style>

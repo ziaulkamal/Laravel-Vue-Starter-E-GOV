@@ -1,0 +1,6 @@
+export { default as KpiCard }               from './KpiCard.vue'
+export { default as QuickActionBar }        from './QuickActionBar.vue'
+export { default as RevenueChart }          from './RevenueChart.vue'
+export { default as DealFunnelChart }       from './DealFunnelChart.vue'
+export { default as ActivityFeed }          from './ActivityFeed.vue'
+export { default as RecentContactsWidget }  from './RecentContactsWidget.vue'

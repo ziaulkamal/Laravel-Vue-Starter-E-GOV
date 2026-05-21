@@ -22,43 +22,23 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import type { AppAlertType } from '@/types';
 
-defineProps({
-    type:        { type: String,  default: 'info' }, // info|success|warning|error
-    title:       { type: String,  default: '' },
-    description: { type: String,  default: '' },
-    dismissible: { type: Boolean, default: false },
+interface Props {
+    type?:        AppAlertType
+    title?:       string
+    description?: string
+    dismissible?: boolean
+}
+
+withDefaults(defineProps<Props>(), {
+    type:        'info',
+    title:       '',
+    description: '',
+    dismissible: false,
 });
-defineEmits(['dismiss']);
+defineEmits<{ dismiss: [] }>();
 
 const visible = ref<boolean>(true);
 </script>
 
-<style scoped>
-.app-alert {
-    display: flex; align-items: flex-start; gap: 12px;
-    padding: 12px 14px; border-radius: var(--radius-md);
-    border: 1.5px solid transparent;
-}
-.app-alert--info    { background: rgba(59,130,246,0.08);  border-color: rgba(59,130,246,0.2);  color: #1d4ed8; }
-.app-alert--success { background: rgba(16,185,129,0.08);  border-color: rgba(16,185,129,0.2);  color: #047857; }
-.app-alert--warning { background: rgba(245,158,11,0.08);  border-color: rgba(245,158,11,0.2);  color: #b45309; }
-.app-alert--error   { background: rgba(239,68,68,0.08);   border-color: rgba(239,68,68,0.2);   color: #b91c1c; }
-
-.app-alert__icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
-
-.app-alert__content { flex: 1; min-width: 0; }
-.app-alert__title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
-.app-alert__desc  { font-size: 12.5px; line-height: 1.5; opacity: 0.85; }
-
-.app-alert__close {
-    flex-shrink: 0; border: none; background: transparent; cursor: pointer;
-    color: inherit; opacity: 0.6; padding: 2px; border-radius: 4px;
-    display: flex; align-items: center;
-    transition: opacity 120ms ease;
-}
-.app-alert__close:hover { opacity: 1; }
-
-.alert-enter-active, .alert-leave-active { transition: all 200ms ease; }
-.alert-enter-from, .alert-leave-to { opacity: 0; transform: translateY(-6px); }
-</style>

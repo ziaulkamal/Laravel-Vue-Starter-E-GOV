@@ -81,29 +81,3 @@ function onLeave(el: Element): void {
 }
 </script>
 
-<style scoped>
-.app-accordion { border: 1.5px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
-
-.app-accordion__item + .app-accordion__item { border-top: 1px solid var(--color-border); }
-
-.app-accordion__trigger {
-    display: flex; align-items: center; justify-content: space-between;
-    width: 100%; padding: 14px 16px;
-    border: none; background: transparent; cursor: pointer; text-align: left;
-    font-family: var(--font-sans); color: var(--color-text-primary);
-    transition: background 120ms ease;
-}
-.app-accordion__trigger:hover { background: var(--color-bg-subtle); }
-.app-accordion__item--open .app-accordion__trigger { background: var(--color-bg-subtle); }
-
-.app-accordion__title { font-size: 13.5px; font-weight: 500; }
-
-.app-accordion__chevron { transition: transform 220ms ease; flex-shrink: 0; color: var(--color-text-muted); }
-.app-accordion__chevron--open { transform: rotate(180deg); }
-
-.app-accordion__body { transition: max-height 240ms ease, opacity 220ms ease; }
-.v-leave-active { transition: max-height 220ms ease, opacity 180ms ease !important; }
-.v-enter-from, .v-leave-to { opacity: 0; }
-
-.app-accordion__content { padding: 4px 16px 16px; font-size: 13.5px; color: var(--color-text-muted); line-height: 1.6; }
-</style>

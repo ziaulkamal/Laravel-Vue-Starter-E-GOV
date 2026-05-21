@@ -39,16 +39,32 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, onUnmounted } from 'vue';
 
-const props = defineProps({
-    modelValue:     { type: Boolean, default: false },
-    title:          { type: String,  default: '' },
-    side:           { type: String,  default: 'right' }, // left|right
-    size:           { type: String,  default: 'md' },    // sm|md|lg|full
-    hideClose:      { type: Boolean, default: false },
-    closeOnBackdrop:{ type: Boolean, default: true },
-    closeOnEsc:     { type: Boolean, default: true },
+type DrawerSide = 'left' | 'right'
+type DrawerSize = 'sm' | 'md' | 'lg' | 'full'
+
+interface Props {
+    modelValue?:      boolean
+    title?:           string
+    side?:            DrawerSide
+    size?:            DrawerSize
+    hideClose?:       boolean
+    closeOnBackdrop?: boolean
+    closeOnEsc?:      boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    modelValue:      false,
+    title:           '',
+    side:            'right',
+    size:            'md',
+    hideClose:       false,
+    closeOnBackdrop: true,
+    closeOnEsc:      true,
 });
-const emit = defineEmits(['update:modelValue', 'close']);
+const emit = defineEmits<{
+    'update:modelValue': [value: boolean]
+    close: []
+}>();
 const drawerRef = ref<HTMLElement | null>(null);
 
 function close(): void {
@@ -78,56 +94,3 @@ onUnmounted(() => {
 });
 </script>
 
-<style scoped>
-.app-drawer-backdrop {
-    position: fixed; inset: 0; z-index: 1000;
-    background: rgba(0,0,0,0.4); backdrop-filter: blur(2px);
-}
-.app-drawer {
-    position: fixed; top: 0; bottom: 0; z-index: 1001;
-    background: var(--color-surface);
-    border: 1.5px solid var(--color-border);
-    box-shadow: var(--shadow-lg);
-    display: flex; flex-direction: column;
-    overflow: hidden; outline: none;
-}
-.app-drawer--right { right: 0; border-left: 1.5px solid var(--color-border); border-radius: var(--radius-xl) 0 0 var(--radius-xl); }
-.app-drawer--left  { left: 0;  border-right: 1.5px solid var(--color-border); border-radius: 0 var(--radius-xl) var(--radius-xl) 0; }
-
-.app-drawer--sm   { width: 320px; }
-.app-drawer--md   { width: 440px; }
-.app-drawer--lg   { width: 600px; }
-.app-drawer--full { width: 100vw; }
-
-.app-drawer__header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 18px 20px 14px;
-    border-bottom: 1px solid var(--color-border);
-    flex-shrink: 0;
-}
-.app-drawer__title { font-size: 15px; font-weight: 600; color: var(--color-text-primary); }
-.app-drawer__close {
-    display: flex; align-items: center; justify-content: center;
-    width: 28px; height: 28px; border-radius: 7px;
-    border: none; background: transparent; cursor: pointer;
-    color: var(--color-text-subtle); transition: background 120ms ease, color 120ms ease;
-}
-.app-drawer__close:hover { background: var(--color-bg-subtle); color: var(--color-text-primary); }
-.app-drawer__body { padding: 20px; overflow-y: auto; flex: 1; }
-.app-drawer__footer {
-    padding: 14px 20px; border-top: 1px solid var(--color-border);
-    display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0;
-}
-
-/* Backdrop */
-.drawer-backdrop-enter-active, .drawer-backdrop-leave-active { transition: opacity 200ms ease; }
-.drawer-backdrop-enter-from, .drawer-backdrop-leave-to { opacity: 0; }
-
-/* Right */
-.drawer-right-enter-active, .drawer-right-leave-active { transition: transform 260ms cubic-bezier(0.16,1,0.3,1); }
-.drawer-right-enter-from, .drawer-right-leave-to { transform: translateX(100%); }
-
-/* Left */
-.drawer-left-enter-active, .drawer-left-leave-active { transition: transform 260ms cubic-bezier(0.16,1,0.3,1); }
-.drawer-left-enter-from, .drawer-left-leave-to { transform: translateX(-100%); }
-</style>

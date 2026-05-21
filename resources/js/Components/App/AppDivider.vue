@@ -28,29 +28,3 @@ defineProps({
 });
 </script>
 
-<style scoped>
-.app-divider--horizontal {
-    border-top: 1px solid var(--color-border);
-    width: 100%; margin: 0;
-}
-.app-divider--horizontal.app-divider--has-label {
-    display: flex; align-items: center; gap: 12px;
-    border-top: none;
-}
-.app-divider--horizontal.app-divider--has-label::before,
-.app-divider--horizontal.app-divider--has-label::after {
-    content: ''; flex: 1; height: 1px;
-    background: var(--color-border);
-}
-
-.app-divider__label {
-    font-size: 11.5px; color: var(--color-text-muted);
-    white-space: nowrap; flex-shrink: 0;
-}
-
-.app-divider--vertical {
-    display: inline-block;
-    border-left: 1px solid var(--color-border);
-    align-self: stretch;
-}
-</style>

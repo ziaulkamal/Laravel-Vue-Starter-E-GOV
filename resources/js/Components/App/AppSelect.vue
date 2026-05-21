@@ -104,23 +104,37 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import type { AppSelectOption, AppSize } from '@/types';
 
-type SelectOption = { value?: string | number; label?: string; disabled?: boolean; icon?: unknown } | string | number;
+type SelectOptionRaw = AppSelectOption | string | number;
 
-const props = defineProps({
-    modelValue: { default: '' },
-    options:    { type: Array as () => SelectOption[], default: () => [] },
-    label:      { type: String,  default: '' },
-    placeholder:{ type: String,  default: 'Select…' },
-    size:       { type: String,  default: 'md' },
-    error:      { type: String,  default: '' },
-    hint:       { type: String,  default: '' },
-    disabled:   { type: Boolean, default: false },
-    required:   { type: Boolean, default: false },
-    native:     { type: Boolean, default: false },
+interface Props {
+    modelValue?:  string | number | null
+    options?:     SelectOptionRaw[]
+    label?:       string
+    placeholder?: string
+    size?:        AppSize
+    error?:       string | null
+    hint?:        string
+    disabled?:    boolean
+    required?:    boolean
+    native?:      boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    modelValue:  '',
+    options:     () => [],
+    label:       '',
+    placeholder: 'Select…',
+    size:        'md',
+    error:       '',
+    hint:        '',
+    disabled:    false,
+    required:    false,
+    native:      false,
 });
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits<{ 'update:modelValue': [value: string | number] }>();
 defineOptions({ inheritAttrs: false });
 
 let _id = 0;
@@ -148,65 +162,3 @@ onMounted(() => document.addEventListener('click', onOutsideClick));
 onUnmounted(() => document.removeEventListener('click', onOutsideClick));
 </script>
 
-<style scoped>
-.app-sel-wrap { position: relative; display: flex; flex-direction: column; gap: 5px; }
-
-.app-sel__label { font-size: 12.5px; font-weight: 600; color: var(--color-text-primary); }
-
-.app-sel__row {
-    display: flex;
-    align-items: center;
-    border: 1.5px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: var(--color-surface);
-    transition: border-color 150ms ease, box-shadow 150ms ease;
-    overflow: hidden;
-}
-.app-sel__row--focused, .app-sel__row--open { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
-.app-sel-wrap--error .app-sel__row { border-color: var(--color-danger); }
-.app-sel__row--sm { min-height: 32px; }
-.app-sel__row--md { min-height: 38px; }
-.app-sel__row--lg { min-height: 44px; }
-
-.app-sel__native {
-    flex: 1; border: none; outline: none; background: transparent; cursor: pointer;
-    color: var(--color-text-primary); font-family: var(--font-sans); font-size: 13.5px;
-    padding: 0 4px 0 12px; width: 100%; appearance: none;
-}
-.app-sel__trigger {
-    flex: 1; border: none; background: transparent; cursor: pointer; text-align: left;
-    color: var(--color-text-primary); font-family: var(--font-sans); font-size: 13.5px;
-    padding: 0 4px 0 12px; display: flex; align-items: center; min-width: 0;
-}
-.app-sel__value { truncate: true; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.app-sel__value--placeholder { color: var(--color-text-subtle); }
-
-.app-sel__prefix { display: flex; align-items: center; padding: 0 10px; color: var(--color-text-muted); border-right: 1.5px solid var(--color-border); }
-.app-sel__chevron { display: flex; align-items: center; padding: 0 10px; color: var(--color-text-subtle); transition: transform 200ms ease; flex-shrink: 0; }
-.app-sel__chevron--open { transform: rotate(180deg); }
-
-.app-sel__panel {
-    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
-    background: var(--color-surface); border: 1.5px solid var(--color-border);
-    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
-    padding: 4px; max-height: 260px; overflow-y: auto;
-}
-.app-sel__option {
-    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
-    border: none; background: transparent; cursor: pointer; text-align: left;
-    font-size: 13px; font-family: var(--font-sans); color: var(--color-text-primary);
-    border-radius: var(--radius-md); transition: background 120ms ease;
-}
-.app-sel__option:hover:not(:disabled) { background: var(--color-bg-subtle); }
-.app-sel__option--active { color: #6366f1; font-weight: 500; }
-.app-sel__option--placeholder { color: var(--color-text-subtle); font-style: italic; }
-.app-sel__option--disabled { opacity: 0.45; cursor: not-allowed; }
-.app-sel__opt-icon { display: flex; align-items: center; color: var(--color-text-muted); }
-
-.app-sel__msg { font-size: 11.5px; }
-.app-sel__msg--error { color: var(--color-danger); }
-.app-sel__msg--hint  { color: var(--color-text-muted); }
-
-.dropdown-enter-active, .dropdown-leave-active { transition: opacity 140ms ease, transform 140ms ease; }
-.dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-6px); }
-</style>

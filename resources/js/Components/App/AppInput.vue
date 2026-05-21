@@ -80,21 +80,35 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import type { AppSize } from '@/types';
 
-const props = defineProps({
-    modelValue: { type: String,  default: '' },
-    label:      { type: String,  default: '' },
-    placeholder:{ type: String,  default: '' },
-    type:       { type: String,  default: 'text' },
-    size:       { type: String,  default: 'md' },  // sm | md | lg
-    error:      { type: String,  default: '' },
-    hint:       { type: String,  default: '' },
-    disabled:   { type: Boolean, default: false },
-    required:   { type: Boolean, default: false },
-    clearable:  { type: Boolean, default: false },
+interface Props {
+    modelValue?:  string | number
+    label?:       string
+    placeholder?: string
+    type?:        string
+    size?:        AppSize
+    error?:       string | null
+    hint?:        string
+    disabled?:    boolean
+    required?:    boolean
+    clearable?:   boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    modelValue:  '',
+    label:       '',
+    placeholder: '',
+    type:        'text',
+    size:        'md',
+    error:       '',
+    hint:        '',
+    disabled:    false,
+    required:    false,
+    clearable:   false,
 });
 
-defineEmits(['update:modelValue']);
+defineEmits<{ 'update:modelValue': [value: string] }>();
 defineOptions({ inheritAttrs: false });
 
 let _id = 0;
@@ -105,92 +119,3 @@ const showPassword = ref(false);
 const currentType  = computed<string>(() => props.type === 'password' && showPassword.value ? 'text' : props.type);
 </script>
 
-<style scoped>
-.app-input-wrap { display: flex; flex-direction: column; gap: 5px; }
-
-.app-input__label {
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    letter-spacing: -0.01em;
-}
-.app-input__required { color: var(--color-danger); }
-
-.app-input__row {
-    display: flex;
-    align-items: center;
-    border: 1.5px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: var(--color-surface);
-    transition: border-color 150ms ease, box-shadow 150ms ease;
-    overflow: hidden;
-}
-.app-input__row--focused {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
-}
-.app-input-wrap--error .app-input__row {
-    border-color: var(--color-danger);
-}
-.app-input-wrap--error .app-input__row--focused {
-    box-shadow: 0 0 0 3px rgba(239,68,68,0.15);
-}
-.app-input-wrap--disabled .app-input__row {
-    background: var(--color-bg-subtle);
-    opacity: 0.6;
-}
-
-/* Sizes */
-.app-input__row--sm  { min-height: 32px; }
-.app-input__row--md  { min-height: 38px; }
-.app-input__row--lg  { min-height: 44px; }
-
-.app-input__native {
-    flex: 1;
-    min-width: 0;
-    border: none;
-    outline: none;
-    background: transparent;
-    color: var(--color-text-primary);
-    font-family: var(--font-sans);
-    padding: 0 12px;
-    width: 100%;
-    height: 100%;
-}
-.app-input__row--sm  .app-input__native { font-size: 12px; padding: 0 10px; }
-.app-input__row--md  .app-input__native { font-size: 13.5px; }
-.app-input__row--lg  .app-input__native { font-size: 15px; padding: 0 14px; }
-.app-input__native::placeholder { color: var(--color-text-subtle); }
-.app-input__native--has-prefix { padding-left: 4px; }
-.app-input__native--has-suffix { padding-right: 4px; }
-
-.app-input__affix {
-    display: flex;
-    align-items: center;
-    padding: 0 10px;
-    color: var(--color-text-muted);
-    font-size: 13px;
-    flex-shrink: 0;
-}
-.app-input__affix--prefix { border-right: 1.5px solid var(--color-border); }
-.app-input__affix--suffix  { border-left:  1.5px solid var(--color-border); }
-
-.app-input__clear {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 8px;
-    height: 100%;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    color: var(--color-text-subtle);
-    transition: color 120ms ease;
-    flex-shrink: 0;
-}
-.app-input__clear:hover { color: var(--color-text-primary); }
-
-.app-input__msg { font-size: 11.5px; }
-.app-input__msg--error { color: var(--color-danger); }
-.app-input__msg--hint  { color: var(--color-text-muted); }
-</style>

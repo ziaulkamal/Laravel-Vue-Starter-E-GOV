@@ -118,7 +118,7 @@
                 <div
                     v-if="showLabels"
                     class="sidebar-user-row"
-                    @mouseenter="($event.currentTarget as HTMLElement).style.background = isDark ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.5)'"
+                    @mouseenter="($event.currentTarget as HTMLElement).style.background = isDark ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'rgba(255,255,255,0.5)'"
                     @mouseleave="($event.currentTarget as HTMLElement).style.background = 'transparent'"
                 >
                     <UserAvatar :user="user" size="sm" :border-bg="isDark ? '#1e293b' : '#f0f1f8'" />
@@ -144,7 +144,7 @@
             >
                 <div class="relative group">
                     <UserAvatar :user="user" size="sm" :border-bg="isDark ? '#1e293b' : '#f0f1f8'" />
-                    <span class="absolute inset-0 rounded-full ring-2 ring-transparent group-hover:ring-indigo-400 transition-all" />
+                    <span class="absolute inset-0 rounded-full ring-2 ring-transparent group-hover:ring-[var(--color-accent)] transition-all" />
                 </div>
             </div>
         </div>
@@ -262,7 +262,7 @@ const indicatorStyle = computed(() => ({
     width:      indWidth.value  + 'px',
     height:     indHeight.value + 'px',
     opacity:    indVisible.value ? '1' : '0',
-    background: props.isDark ? 'rgba(99,102,241,0.14)' : 'rgba(99,102,241,0.09)',
+    background: props.isDark ? 'color-mix(in srgb, var(--color-accent) 14%, transparent)' : 'color-mix(in srgb, var(--color-accent) 9%, transparent)',
 }));
 
 function placeAt(itemEl: HTMLElement) {
@@ -305,7 +305,7 @@ onMounted(async () => {
 onUnmounted(() => { if (hideTimer !== null) clearTimeout(hideTimer); });
 
 // ── Design tokens (reactive on isDark) ──
-const accentColor = '#6366f1';
+const accentColor = 'var(--color-accent)';
 
 const sidebarBg   = computed(() => props.isDark ? '#0d1117'        : '#f0f1f8');
 const borderColor = computed(() => props.isDark ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.12)');
@@ -328,150 +328,3 @@ const iconGroupStyle = computed<Record<string, string>>(() => ({
     boxShadow: props.isDark ? '0 1px 3px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.06)',
 }));
 </script>
-
-<style scoped>
-/* ── Sidebar positioning ── */
-
-/* ──────────────────────────────────────────────────────────────
-   Desktop (≥ 768px):
-   - sticky top:0 → sidebar mulai dari paling atas, sejajar dengan topbar
-   - height:100vh → full tinggi viewport
-   - Nav bagian dalam (flex-1 + overflow-y:auto) yang scroll,
-     bukan sidebar-nya sendiri
-   ────────────────────────────────────────────────────────────── */
-.app-sidebar {
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    flex-shrink: 0;
-    z-index: 20;
-    /* overflow: hidden diatur via sidebarStyle inline agar aurora ter-clip,
-       tapi scrollbar nav tetap terlihat karena ada di dalam sidebar */
-}
-
-/* ──────────────────────────────────────────────────────────────
-   Mobile (< 768px): fixed overlay slide dari kiri
-   ────────────────────────────────────────────────────────────── */
-@media (max-width: 767px) {
-    .app-sidebar {
-        position: fixed;
-        top: 0; bottom: 0; left: 0;
-        height: 100dvh;
-        z-index: 30;
-    }
-    .app-sidebar--mobile-open  { transform: translateX(0); box-shadow: 0 0 40px rgba(0,0,0,0.35); }
-    .app-sidebar--mobile-closed { transform: translateX(-100%); }
-}
-
-.sidebar-logo {
-    width: 38px; height: 38px; border-radius: 12px;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%);
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 12px rgba(99,102,241,0.35);
-    flex-shrink: 0;
-}
-
-/* ── Aurora overlay ── */
-.sidebar-aurora {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    overflow: hidden;
-}
-
-.sidebar-aurora__blob {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(48px);
-    opacity: 0.55;
-    will-change: transform;
-}
-
-.sidebar-aurora__blob--1 {
-    width: 220px; height: 220px;
-    top: -40px; left: -60px;
-    background: radial-gradient(circle, #6366f1 0%, transparent 70%);
-    animation: aurora-1 14s ease-in-out infinite alternate;
-}
-.sidebar-aurora__blob--2 {
-    width: 180px; height: 180px;
-    top: 30%; right: -50px;
-    background: radial-gradient(circle, #8b5cf6 0%, transparent 70%);
-    animation: aurora-2 18s ease-in-out infinite alternate;
-    opacity: 0.4;
-}
-.sidebar-aurora__blob--3 {
-    width: 200px; height: 200px;
-    bottom: 60px; left: -30px;
-    background: radial-gradient(circle, #06b6d4 0%, transparent 70%);
-    animation: aurora-3 22s ease-in-out infinite alternate;
-    opacity: 0.3;
-}
-
-@keyframes aurora-1 {
-    0%   { transform: translate(0px, 0px) scale(1); }
-    50%  { transform: translate(30px, 40px) scale(1.15); }
-    100% { transform: translate(10px, 80px) scale(0.9); }
-}
-@keyframes aurora-2 {
-    0%   { transform: translate(0px, 0px) scale(1); }
-    40%  { transform: translate(-20px, 30px) scale(1.2); }
-    100% { transform: translate(15px, -50px) scale(0.85); }
-}
-@keyframes aurora-3 {
-    0%   { transform: translate(0px, 0px) scale(1); }
-    60%  { transform: translate(40px, -30px) scale(1.1); }
-    100% { transform: translate(-10px, -60px) scale(1.25); }
-}
-
-/* Make nav content sit above aurora */
-.sidebar-aurora ~ * {
-    position: relative;
-    z-index: 1;
-}
-
-/* ── User footer ── */
-.sidebar-user-footer {
-    flex-shrink: 0;
-    padding-bottom: 10px;
-    padding-top: 4px;
-}
-
-.sidebar-user-divider {
-    border-top: 1px solid;
-    margin-bottom: 6px;
-}
-
-.sidebar-user-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: background 130ms ease;
-}
-
-/* Transitions */
-.overlay-enter-active, .overlay-leave-active { transition: opacity 220ms ease; }
-.overlay-enter-from, .overlay-leave-to { opacity: 0; }
-
-.slide-label-enter-active, .slide-label-leave-active {
-    transition: opacity 150ms ease, max-width 260ms cubic-bezier(.4,0,.2,1);
-    overflow: hidden; max-width: 220px;
-}
-.slide-label-enter-from, .slide-label-leave-to { opacity: 0; max-width: 0; }
-
-/* ── Sliding hover indicator ── */
-.nav-sliding-indicator {
-    pointer-events: none;
-    border-radius: 10px;
-    transition:
-        top    180ms cubic-bezier(0.4, 0, 0.2, 1),
-        left   180ms cubic-bezier(0.4, 0, 0.2, 1),
-        width  150ms ease,
-        height 150ms ease,
-        opacity 150ms ease;
-}
-</style>

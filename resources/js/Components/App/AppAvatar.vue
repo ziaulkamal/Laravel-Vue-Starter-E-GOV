@@ -25,24 +25,38 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import type { AppAvatarUser, AppSize } from '@/types';
 
-type AvatarUser = { name?: string; avatar?: string; color?: string } | null;
-type GroupUser  = { name?: string; avatar?: string; color?: string } | string;
+type GroupUser = AppAvatarUser | string;
 
-const props = defineProps({
-    user:      { type: Object as () => AvatarUser, default: null },
-    src:       { type: String,  default: '' },
-    alt:       { type: String,  default: '' },
-    name:      { type: String,  default: '' },
-    size:      { type: String,  default: 'md' }, // xs|sm|md|lg|xl
-    color:     { type: String,  default: '' },
-    showDot:   { type: Boolean, default: false },
-    dotColor:  { type: String,  default: '#22c55e' },
-    borderBg:  { type: String,  default: 'var(--color-surface)' },
-    // Group mode
-    group:     { type: Boolean, default: false },
-    users:     { type: Array as () => Array<string | { name?: string; avatar?: string; color?: string }>, default: () => [] },
-    max:       { type: Number,  default: 4 },
+interface Props {
+    user?:     AppAvatarUser | null
+    src?:      string
+    alt?:      string
+    name?:     string
+    size?:     AppSize
+    color?:    string
+    showDot?:  boolean
+    dotColor?: string
+    borderBg?: string
+    group?:    boolean
+    users?:    GroupUser[]
+    max?:      number
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    user:     null,
+    src:      '',
+    alt:      '',
+    name:     '',
+    size:     'md',
+    color:    '',
+    showDot:  false,
+    dotColor: '#22c55e',
+    borderBg: 'var(--color-surface)',
+    group:    false,
+    users:    () => [],
+    max:      4,
 });
 
 const gradients: string[] = [
@@ -89,41 +103,3 @@ const displayUsers = computed(() => props.users.slice(0, props.max));
 const overflow = computed<number>(() => Math.max(0, props.users.length - props.max));
 </script>
 
-<style scoped>
-.app-avatar {
-    position: relative; flex-shrink: 0; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 600; color: white; overflow: hidden;
-}
-
-.app-avatar--xs { width: 24px; height: 24px; font-size: 9px; }
-.app-avatar--sm { width: 30px; height: 30px; font-size: 11px; }
-.app-avatar--md { width: 36px; height: 36px; font-size: 13px; }
-.app-avatar--lg { width: 44px; height: 44px; font-size: 16px; }
-.app-avatar--xl { width: 56px; height: 56px; font-size: 20px; }
-
-.app-avatar__img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-.app-avatar__initials { line-height: 1; }
-
-.app-avatar__dot {
-    position: absolute; bottom: 0; right: 0;
-    width: 10px; height: 10px; border-radius: 50%;
-}
-.app-avatar--xs .app-avatar__dot { width: 7px; height: 7px; }
-.app-avatar--sm .app-avatar__dot { width: 8px; height: 8px; }
-.app-avatar--lg .app-avatar__dot { width: 12px; height: 12px; }
-.app-avatar--xl .app-avatar__dot { width: 14px; height: 14px; }
-
-/* Group */
-.app-avatar-group { display: flex; align-items: center; }
-.app-avatar--grouped {
-    border: 2px solid var(--color-surface);
-    cursor: default;
-}
-.app-avatar--overflow {
-    background: var(--color-bg-subtle);
-    color: var(--color-text-muted);
-    font-size: 11px;
-    font-weight: 600;
-}
-</style>

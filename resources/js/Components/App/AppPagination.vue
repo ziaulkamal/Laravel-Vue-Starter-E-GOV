@@ -47,16 +47,23 @@
 import { computed } from 'vue';
 import { ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon } from '@lucide/vue';
 
-const props = defineProps({
-    modelValue:    { type: Number,  default: 1 },
-    total:         { type: Number,  default: 0 },
-    perPage:       { type: Number,  default: 10 },
-    perPageOptions:{ type: Array as () => number[], default: () => [10, 25, 50, 100] },
+interface Props {
+    modelValue?:     number
+    total?:          number
+    perPage?:        number
+    perPageOptions?: number[]
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    modelValue:     1,
+    total:          0,
+    perPage:        10,
+    perPageOptions: () => [10, 25, 50, 100],
 });
 
 const emit = defineEmits<{
-    'update:modelValue': [page: number];
-    'update:perPage':    [n: number];
+    'update:modelValue': [page: number]
+    'update:perPage':    [n: number]
 }>();
 
 const lastPage = computed(() => Math.max(1, Math.ceil(props.total / props.perPage)));
@@ -81,42 +88,3 @@ function onPerPage(e: Event) {
 }
 </script>
 
-<style scoped>
-.pgn {
-    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-}
-.pgn__per { display: flex; align-items: center; gap: 6px; }
-.pgn__per-label { font-size: 12px; color: var(--color-text-muted); }
-.pgn__per-select {
-    font-size: 12px; font-family: var(--font-sans);
-    border: 1.5px solid var(--color-border); border-radius: 7px;
-    padding: 4px 8px; background: var(--color-surface);
-    color: var(--color-text-primary); outline: none; cursor: pointer;
-}
-.pgn__info {
-    font-size: 12px; color: var(--color-text-muted);
-    margin-right: auto;
-}
-.pgn__btns { display: flex; gap: 2px; }
-.pgn__btn {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 30px; height: 30px; padding: 0 6px;
-    border-radius: 7px; border: 1.5px solid transparent;
-    background: transparent; cursor: pointer;
-    font-size: 12.5px; font-weight: 500; font-family: var(--font-sans);
-    color: var(--color-text-muted);
-    transition: all 120ms ease;
-}
-.pgn__btn:hover:not(:disabled):not(.pgn__btn--ellipsis) {
-    background: var(--color-bg-subtle);
-    border-color: var(--color-border);
-    color: var(--color-text-primary);
-}
-.pgn__btn:disabled { opacity: 0.35; cursor: not-allowed; }
-.pgn__btn--active {
-    background: #6366f1; color: #fff;
-    border-color: #6366f1;
-}
-.pgn__btn--active:hover { background: #4f46e5; border-color: #4f46e5; color: #fff; }
-.pgn__btn--ellipsis { cursor: default; }
-</style>

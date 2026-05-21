@@ -114,25 +114,28 @@
 import { ref, computed, useSlots } from 'vue';
 import { SearchIcon, XIcon, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon } from '@lucide/vue';
 import AppPagination from '@/Components/App/AppPagination.vue';
-
-export interface Column {
-    key:      string;
-    label:    string;
-    sortable?: boolean;
-    width?:   string;
-    class?:   string;
-}
+import type { AppColumn } from '@/types';
 
 type Row = Record<string, unknown>;
 
-const props = defineProps({
-    columns:           { type: Array as () => Column[], default: () => [] },
-    rows:              { type: Array as () => Row[],    default: () => [] },
-    rowId:             { type: String,  default: 'id' },
-    selectable:        { type: Boolean, default: false },
-    searchPlaceholder: { type: String,  default: 'Search…' },
-    searchKeys:        { type: Array as () => string[], default: () => [] },
-    defaultPerPage:    { type: Number,  default: 10 },
+interface Props {
+    columns?:           AppColumn<Row>[]
+    rows?:              Row[]
+    rowId?:             string
+    selectable?:        boolean
+    searchPlaceholder?: string
+    searchKeys?:        string[]
+    defaultPerPage?:    number
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    columns:           () => [],
+    rows:              () => [],
+    rowId:             'id',
+    selectable:        false,
+    searchPlaceholder: 'Search…',
+    searchKeys:        () => [],
+    defaultPerPage:    10,
 });
 
 const slots = useSlots();
@@ -208,90 +211,3 @@ function onPerPage(n: number) {
 }
 </script>
 
-<style scoped>
-.dt { display: flex; flex-direction: column; gap: 0; }
-
-.dt__toolbar {
-    display: flex; align-items: center; gap: 10px;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--color-border);
-}
-.dt__search-wrap {
-    display: flex; align-items: center; gap: 7px;
-    flex: 1; max-width: 280px;
-    border: 1.5px solid var(--color-border); border-radius: 8px;
-    padding: 6px 10px; background: var(--color-bg-subtle);
-}
-.dt__search-icon { color: var(--color-text-subtle); flex-shrink: 0; }
-.dt__search {
-    flex: 1; border: none; background: transparent; outline: none;
-    font-size: 12.5px; color: var(--color-text-primary); font-family: var(--font-sans);
-}
-.dt__search::placeholder { color: var(--color-text-subtle); }
-.dt__search-clear {
-    display: flex; align-items: center; justify-content: center;
-    border: none; background: transparent; cursor: pointer;
-    color: var(--color-text-subtle); padding: 0; flex-shrink: 0;
-}
-.dt__search-clear:hover { color: var(--color-text-muted); }
-
-.dt__bulk {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 16px;
-    background: color-mix(in srgb, #6366f1 8%, transparent);
-    border-bottom: 1px solid color-mix(in srgb, #6366f1 20%, transparent);
-}
-.dt__bulk-count { font-size: 12.5px; font-weight: 600; color: #6366f1; margin-right: 4px; }
-.dt__bulk-clear {
-    display: inline-flex; align-items: center; gap: 4px;
-    margin-left: auto; font-size: 12px; font-weight: 500;
-    color: var(--color-text-muted); border: none; background: transparent;
-    cursor: pointer; font-family: var(--font-sans); padding: 0;
-}
-.dt__bulk-clear:hover { color: var(--color-text-primary); }
-
-.dt-bulk-enter-active, .dt-bulk-leave-active { transition: all 180ms ease; }
-.dt-bulk-enter-from, .dt-bulk-leave-to { opacity: 0; transform: translateY(-6px); }
-
-.dt__wrap { overflow-x: auto; }
-.dt__table { width: 100%; border-collapse: collapse; }
-
-.dt__th {
-    text-align: left; font-size: 11px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.07em;
-    color: var(--color-text-subtle);
-    padding: 10px 14px; border-bottom: 1.5px solid var(--color-border);
-    white-space: nowrap; user-select: none;
-}
-.dt__th--check { width: 40px; padding: 10px 12px; }
-.dt__th--actions { width: 60px; }
-.dt__th--sortable { cursor: pointer; }
-.dt__th--sortable:hover { color: var(--color-text-primary); }
-.dt__th-inner { display: flex; align-items: center; gap: 4px; }
-.dt__sort-icon { display: flex; align-items: center; }
-.dt__sort-idle { color: var(--color-text-subtle); opacity: 0.5; }
-
-.dt__row { transition: background 100ms ease; }
-.dt__row:hover { background: var(--color-bg-subtle); }
-.dt__row--selected { background: color-mix(in srgb, #6366f1 5%, transparent); }
-
-.dt__td {
-    padding: 11px 14px; border-bottom: 1px solid var(--color-border);
-    font-size: 13px; color: var(--color-text-primary); vertical-align: middle;
-}
-.dt__td--check { padding: 11px 12px; width: 40px; }
-.dt__td--actions { padding: 8px 12px; text-align: right; }
-.dt__row:last-child .dt__td { border-bottom: none; }
-
-.dt__check {
-    width: 15px; height: 15px; border-radius: 4px;
-    accent-color: #6366f1; cursor: pointer;
-}
-
-.dt__empty { padding: 40px; text-align: center; }
-
-.dt__footer {
-    padding: 12px 16px;
-    border-top: 1px solid var(--color-border);
-}
-</style>

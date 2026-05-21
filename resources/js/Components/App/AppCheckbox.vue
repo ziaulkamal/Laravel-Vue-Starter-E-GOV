@@ -28,16 +28,25 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-const props = defineProps({
-    modelValue:    { default: false },
-    value:         { default: true },
-    label:         { type: String,  default: '' },
-    description:   { type: String,  default: '' },
-    indeterminate: { type: Boolean, default: false },
-    disabled:      { type: Boolean, default: false },
+interface Props {
+    modelValue?:    boolean | unknown[]
+    value?:         unknown
+    label?:         string
+    description?:   string
+    indeterminate?: boolean
+    disabled?:      boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    modelValue:    false,
+    value:         true,
+    label:         '',
+    description:   '',
+    indeterminate: false,
+    disabled:      false,
 });
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits<{ 'update:modelValue': [value: boolean | unknown[]] }>();
 defineOptions({ inheritAttrs: false });
 
 const isChecked = computed<boolean>(() => {
@@ -57,34 +66,3 @@ function onChange(e: Event): void {
 }
 </script>
 
-<style scoped>
-.app-cb { display: inline-flex; align-items: flex-start; gap: 10px; cursor: pointer; user-select: none; }
-.app-cb--disabled { opacity: 0.5; cursor: not-allowed; }
-
-.app-cb__box {
-    position: relative; width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
-    border: 2px solid var(--color-border); border-radius: 5px;
-    background: var(--color-surface);
-    transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
-    display: flex; align-items: center; justify-content: center;
-}
-.app-cb__box--checked, .app-cb__box--indeterminate {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    border-color: #6366f1;
-    box-shadow: 0 2px 6px rgba(99,102,241,0.3);
-}
-.app-cb:hover:not(.app-cb--disabled) .app-cb__box { border-color: #6366f1; }
-
-.app-cb__input {
-    position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%;
-    cursor: inherit; margin: 0;
-}
-.app-cb__input:focus-visible + svg,
-.app-cb__input:focus-visible ~ .app-cb__dash {
-    outline: 2px solid #6366f1; outline-offset: 2px;
-}
-.app-cb__dash { width: 9px; height: 2px; border-radius: 1px; background: white; }
-
-.app-cb__label { font-size: 13.5px; color: var(--color-text-primary); line-height: 1.4; }
-.app-cb__desc  { display: block; font-size: 11.5px; color: var(--color-text-muted); margin-top: 1px; }
-</style>

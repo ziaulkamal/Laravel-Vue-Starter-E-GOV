@@ -42,38 +42,3 @@ function onChange(): void {
 }
 </script>
 
-<style scoped>
-.app-radio { display: inline-flex; align-items: flex-start; gap: 10px; cursor: pointer; user-select: none; }
-.app-radio--disabled { opacity: 0.5; cursor: not-allowed; }
-
-.app-radio__circle {
-    position: relative; width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
-    border: 2px solid var(--color-border); border-radius: 50%;
-    background: var(--color-surface);
-    transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
-    display: flex; align-items: center; justify-content: center;
-}
-.app-radio__circle--checked {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    border-color: #6366f1;
-    box-shadow: 0 2px 6px rgba(99,102,241,0.3);
-}
-.app-radio:hover:not(.app-radio--disabled) .app-radio__circle { border-color: #6366f1; }
-
-.app-radio__input {
-    position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%;
-    cursor: inherit; margin: 0;
-}
-.app-radio__input:focus-visible ~ .app-radio__dot,
-.app-radio__input:focus-visible {
-    outline: 2px solid #6366f1; outline-offset: 2px; border-radius: 50%;
-}
-
-.app-radio__dot {
-    width: 7px; height: 7px; border-radius: 50%; background: white;
-    pointer-events: none;
-}
-
-.app-radio__label { font-size: 13.5px; color: var(--color-text-primary); line-height: 1.4; }
-.app-radio__desc  { display: block; font-size: 11.5px; color: var(--color-text-muted); margin-top: 1px; }
-</style>

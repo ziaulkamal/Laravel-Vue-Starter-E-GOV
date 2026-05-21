@@ -85,35 +85,3 @@ onMounted(() => {
 onUnmounted(() => document.removeEventListener('click', onOutside));
 </script>
 
-<style scoped>
-.app-ctx-wrap { display: contents; }
-</style>
-
-<style>
-.app-ctx-panel {
-    position: fixed; z-index: 9999;
-    background: var(--color-surface);
-    border: 1.5px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-    padding: 4px; min-width: 180px;
-}
-.app-ctx-item {
-    display: flex; align-items: center; gap: 8px;
-    width: 100%; padding: 7px 10px;
-    border: none; background: transparent; cursor: pointer; text-align: left;
-    font-size: 12.5px; font-family: var(--font-sans); color: var(--color-text-primary);
-    border-radius: var(--radius-md); transition: background 120ms ease;
-}
-.app-ctx-item:hover:not(:disabled) { background: var(--color-bg-subtle); }
-.app-ctx-item--danger  { color: var(--color-danger); }
-.app-ctx-item--danger:hover:not(:disabled) { background: rgba(239,68,68,0.08); }
-.app-ctx-item--disabled { opacity: 0.45; cursor: not-allowed; }
-.app-ctx-item__icon    { display: flex; align-items: center; color: var(--color-text-muted); }
-.app-ctx-item--danger .app-ctx-item__icon { color: var(--color-danger); }
-.app-ctx-item__shortcut { margin-left: auto; font-size: 10.5px; color: var(--color-text-subtle); }
-.app-ctx-divider { height: 1px; background: var(--color-border); margin: 4px 0; }
-
-.ctx-enter-active, .ctx-leave-active { transition: opacity 120ms ease, transform 120ms ease; }
-.ctx-enter-from, .ctx-leave-to { opacity: 0; transform: scale(0.96); }
-</style>
