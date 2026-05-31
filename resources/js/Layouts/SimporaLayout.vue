@@ -1,7 +1,7 @@
 <template>
     <BaseLayout
         v-if="isAuthenticated"
-        :nav-groups="simporaNavGroups"
+        :nav-groups="navGroups"
         :user="authUser"
         app-name="SIMPORA 2026"
         app-subtitle="PORA XV Aceh Jaya"
@@ -27,7 +27,12 @@ const props = withDefaults(defineProps<Props>(), {
     notificationCount: 0,
 });
 
-const { user, isAuthenticated, logout, fetchMe } = useAuth();
+const { user, isAuthenticated, isSuperAdmin, logout, fetchMe } = useAuth();
+
+// Sembunyikan grup khusus super-admin (mis. Dev/Tools) dari user biasa.
+const navGroups = computed(() =>
+    simporaNavGroups.filter((g) => !g.superAdminOnly || isSuperAdmin.value),
+);
 
 // Guard SINKRON (di setup, sebelum render) supaya halaman terproteksi
 // tidak sempat ber-"blink" muncul sebelum redirect. Token dibaca dari

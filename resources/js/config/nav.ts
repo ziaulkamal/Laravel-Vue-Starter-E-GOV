@@ -6,7 +6,7 @@ import {
     UserCheck, BarChart2,
     Hotel, CreditCard,
     Download, Activity, UserCog,
-    FileCheck,
+    FileCheck, DatabaseZap,
 } from '@lucide/vue';
 
 export interface NavItem {
@@ -25,6 +25,8 @@ export interface NavGroup {
     subtitle?: string
     color?: string
     items: NavItem[]
+    /** Hanya tampil untuk super admin (mis. tools dev). */
+    superAdminOnly?: boolean
 }
 
 export const simporaNavGroups: NavGroup[] = [
@@ -95,6 +97,14 @@ export const simporaNavGroups: NavGroup[] = [
             { label: 'Laporan',   icon: Download,  href: '/reports' },
             { label: 'Audit Log', icon: Activity,  href: '/audit-logs' },
             { label: 'Users',     icon: UserCog,   href: '/users' },
+        ],
+    },
+    {
+        label: 'Dev / Tools',
+        color: '#64748b',
+        superAdminOnly: true,
+        items: [
+            { label: 'Generator Data', icon: DatabaseZap, href: '/dev/seeder', subtitle: 'Data simulasi' },
         ],
     },
 ];

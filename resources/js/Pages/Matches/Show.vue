@@ -9,8 +9,10 @@
                         <div class="match-code">{{ match.match_code }}</div>
                         <h1 class="match-name">{{ match.sport_category?.name ?? '—' }}</h1>
                         <div class="match-meta">
-                            <span>📍 {{ match.venue?.name ?? '—' }}</span>
-                            <span>🕐 {{ formatTime(match.scheduled_at) }}</span>
+                            <span v-if="match.sport_category?.sport?.name" class="meta-chip">🏅 {{ match.sport_category.sport.name }}</span>
+                            <span class="meta-chip">📍 {{ match.venue?.name ?? '—' }}</span>
+                            <span class="meta-chip">🕐 {{ formatTime(match.scheduled_at) }}</span>
+                            <span v-if="match.round" class="meta-chip">🔁 {{ match.round }}</span>
                             <AppBadge :color="statusColor(match.status)" size="md">
                                 <span v-if="match.status === 'ongoing'" class="pulse-dot" />
                                 {{ statusLabel(match.status) }}
@@ -18,37 +20,207 @@
                         </div>
                     </div>
                     <div class="match-actions">
-                        <AppDropdown v-if="statusMenuItems.length" :items="statusMenuItems" placement="right">
-                            <AppButton variant="secondary" size="sm">Ubah Status ▾</AppButton>
+                        <AppDropdown v-if="statusMenuItems.length" :items="statusMenuItems" align="right">
+                            <template #trigger>
+                                <AppButton variant="secondary" size="sm">Ubah Status ▾</AppButton>
+                            </template>
                         </AppDropdown>
-                        <AppButton v-if="match && ['scheduled','postponed'].includes(match.status)" variant="ghost" size="sm" @click="$inertia.visit(`/matches/${encodeId(realId)}/edit`)"><Pencil :size="14" /> Edit</AppButton>
+                        <AppButton v-if="['scheduled','postponed'].includes(match.status)" variant="ghost" size="sm" @click="$inertia.visit(`/matches/${encodeId(realId)}/edit`)"><Pencil :size="14" /> Edit</AppButton>
+                    </div>
+                </div>
+            </AppCard>
+
+            <!-- ── Penilaian langsung (saat berlangsung, juri / super admin) ─ -->
+            <AppCard v-if="match && isScoring" class="scoreboard scoring">
+                <div class="scoreboard-status scoring-status"><span class="pulse-dot" /> Penilaian Langsung</div>
+
+                <!-- Versus tanpa BO3 -->
+                <div v-if="kind === 'versus' && !isBo3" class="versus">
+                    <div class="vs-side">
+                        <ContingentLogo :contingent="homeC" :size="56" :radius="14" />
+                        <div class="vs-name">{{ cap(homeC?.name) ?? 'Home' }}</div>
+                        <input type="number" min="0" class="score-input" v-model.number="scoreForm.home" />
+                    </div>
+                    <div class="vs-score"><span class="sep">:</span></div>
+                    <div class="vs-side">
+                        <ContingentLogo :contingent="awayC" :size="56" :radius="14" />
+                        <div class="vs-name">{{ cap(awayC?.name) ?? 'Away' }}</div>
+                        <input type="number" min="0" class="score-input" v-model.number="scoreForm.away" />
+                    </div>
+                </div>
+
+                <!-- Versus BO3 (set) -->
+                <div v-else-if="kind === 'versus' && isBo3" class="bo3-editor">
+                    <div class="bo3-head">
+                        <span>{{ cap(homeC?.name) ?? 'Home' }}</span>
+                        <span></span>
+                        <span>{{ cap(awayC?.name) ?? 'Away' }}</span>
+                    </div>
+                    <div v-for="(s, i) in setsForm" :key="i" class="bo3-row">
+                        <input type="number" min="0" class="score-input sm" v-model.number="s.home" />
+                        <span class="bo3-label">Set {{ i + 1 }}<button v-if="setsForm.length > 1" class="set-x" @click="removeSet(i)">×</button></span>
+                        <input type="number" min="0" class="score-input sm" v-model.number="s.away" />
+                    </div>
+                    <button v-if="setsForm.length < 3" class="add-set" @click="addSet">+ Tambah Set</button>
+                    <p class="bo3-current">Set dimenangkan: <b :class="{ win: bo3Home > bo3Away }">{{ bo3Home }}</b> – <b :class="{ win: bo3Away > bo3Home }">{{ bo3Away }}</b></p>
+                </div>
+
+                <!-- Ranking -->
+                <div v-else class="rank-editor">
+                    <div v-for="p in (match.participants ?? [])" :key="p.id" class="rank-edit-row">
+                        <ContingentLogo :contingent="p.contingent" :size="32" :radius="8" />
+                        <span class="rank-name">{{ cap(p.contingent?.name) ?? '—' }}</span>
+                        <input class="score-input rank-in" :placeholder="rankPlaceholder" v-model="rankValues[p.contingent_id ?? p.contingent?.id]" />
+                    </div>
+                    <p class="rank-hint">{{ rankHint }}</p>
+                </div>
+
+                <div class="scoring-actions">
+                    <AppButton variant="secondary" :loading="savingScore" @click="saveScore">💾 Simpan Skor</AppButton>
+                    <AppButton variant="primary" @click="showFinish = true">🏁 Selesaikan</AppButton>
+                </div>
+            </AppCard>
+
+            <!-- ── Scoreboard / hasil pertandingan (read-only) ─────────────── -->
+            <AppCard v-if="match && !isScoring" :class="['scoreboard', { 'is-final': match.status === 'finished' }]">
+                <div class="scoreboard-status">
+                    <template v-if="match.status === 'finished'">
+                        <span class="dot dot-final" /> Hasil Akhir
+                    </template>
+                    <template v-else-if="match.status === 'ongoing'">
+                        <span class="pulse-dot" /> Sedang Berlangsung
+                    </template>
+                    <template v-else>
+                        <span class="dot" /> {{ statusLabel(match.status) }}
+                    </template>
+                </div>
+
+                <!-- VERSUS: home vs away -->
+                <div v-if="kind === 'versus'" class="versus">
+                    <div :class="['vs-side', { winner: versusWinner === 'home' }]">
+                        <ContingentLogo :contingent="homeC" :size="56" :radius="14" />
+                        <div class="vs-name">{{ cap(homeC?.name) ?? 'Kontingen A' }}</div>
+                        <AppBadge size="sm" color="info">Home</AppBadge>
+                    </div>
+                    <div class="vs-score">
+                        <template v-if="hasResult">
+                            <span :class="{ win: versusWinner === 'home' }">{{ homeScore }}</span>
+                            <span class="sep">:</span>
+                            <span :class="{ win: versusWinner === 'away' }">{{ awayScore }}</span>
+                        </template>
+                        <span v-else class="vs-pending">VS</span>
+                    </div>
+                    <div :class="['vs-side', { winner: versusWinner === 'away' }]">
+                        <ContingentLogo :contingent="awayC" :size="56" :radius="14" />
+                        <div class="vs-name">{{ cap(awayC?.name) ?? 'Kontingen B' }}</div>
+                        <AppBadge size="sm" color="default">Away</AppBadge>
+                    </div>
+                </div>
+
+                <!-- Set breakdown (BO3) -->
+                <div v-if="kind === 'versus' && sets.length" class="sets">
+                    <div v-for="(s, i) in sets" :key="i" class="set-cell">
+                        <span class="set-label">Set {{ i + 1 }}</span>
+                        <span class="set-score"><b :class="{ win: s.home > s.away }">{{ s.home }}</b>–<b :class="{ win: s.away > s.home }">{{ s.away }}</b></span>
+                    </div>
+                </div>
+
+                <!-- RANKING: urutan kontingen -->
+                <div v-else-if="kind === 'ranking'" class="ranking">
+                    <template v-if="hasResult">
+                        <div v-for="r in rankingRows" :key="r.contingent_id" class="rank-row">
+                            <span class="rank-pos" :data-medal="r.rank <= 3">{{ medalEmoji(r.rank) || r.rank }}</span>
+                            <ContingentLogo :contingent="contingentMap[r.contingent_id]" :size="32" :radius="8" />
+                            <span class="rank-name">{{ cap(contingentMap[r.contingent_id]?.name) ?? '—' }}</span>
+                            <span class="rank-val">{{ formatRankValue(r.result) }}</span>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <div v-for="p in (match.participants ?? [])" :key="p.id" class="rank-row">
+                            <ContingentLogo :contingent="p.contingent" :size="32" :radius="8" />
+                            <span class="rank-name">{{ cap(p.contingent?.name) ?? '—' }}</span>
+                        </div>
+                        <AppEmptyState v-if="!(match.participants?.length)" title="Belum ada kontingen" size="sm" />
+                    </template>
+                </div>
+
+                <div v-if="result?.notes" class="result-notes">📝 {{ result.notes }}</div>
+                <div v-if="canScore && ['scheduled','postponed'].includes(match.status)" class="score-hint">
+                    💡 Ubah status ke <strong>Berlangsung</strong> (menu "Ubah Status") untuk mulai melakukan penilaian.
+                </div>
+            </AppCard>
+
+            <!-- ── Medali ──────────────────────────────────────────────────── -->
+            <AppCard v-if="medals.length">
+                <h2 class="section-title">🏆 Perolehan Medali</h2>
+                <div class="medal-list">
+                    <div v-for="m in medalsSorted" :key="m.id" class="medal-item">
+                        <span class="medal-icon">{{ medalIconByName(m.medal) }}</span>
+                        <div class="medal-body">
+                            <span class="medal-cont">{{ cap(m.contingent?.name) ?? '—' }}</span>
+                            <span v-if="m.participant?.person?.nama_lengkap" class="medal-person">{{ cap(m.participant.person.nama_lengkap) }}</span>
+                        </div>
+                        <AppBadge :color="medalColor(m.medal)" size="sm">{{ medalLabel(m.medal) }}</AppBadge>
                     </div>
                 </div>
             </AppCard>
 
             <AppTabs v-if="match" v-model="activeTab" variant="underline" :tabs="tabs">
-                <template #kontingen>
-                    <div class="kontingen-list">
-                        <div v-for="p in (match.participants ?? [])" :key="p.id" class="kontingen-item">
-                            <div class="logo-sm">{{ p.contingent?.short_name ?? '—' }}</div>
-                            <span class="kontingen-name">{{ p.contingent?.name ?? '—' }}</span>
-                            <AppBadge v-if="p.side" color="default" size="sm">{{ p.side }}</AppBadge>
+                <!-- Atlet / lineup -->
+                <template #lineup>
+                    <div v-if="loadingExtra" class="muted">Memuat…</div>
+                    <div v-else-if="lineupGroups.length" class="lineup-groups">
+                        <div v-for="g in lineupGroups" :key="g.contingent_id" class="lineup-group">
+                            <div class="lineup-head">
+                                <ContingentLogo :wilayah-kode="g.wilayah_kode" :short-name="g.short_name" :size="32" :radius="8" />
+                                <span>{{ cap(g.name) ?? '—' }}</span>
+                                <span class="lineup-count">{{ g.athletes.length }} atlet</span>
+                            </div>
+                            <div class="lineup-athletes">
+                                <div v-for="a in g.athletes" :key="a.id" class="athlete-row">
+                                    <span class="jersey">{{ a.jersey_number ?? '–' }}</span>
+                                    <span class="athlete-name">{{ cap(a.name) ?? '—' }}</span>
+                                    <span v-if="a.gender" class="athlete-gender">{{ a.gender === 'male' ? 'Putra' : a.gender === 'female' ? 'Putri' : a.gender }}</span>
+                                </div>
+                            </div>
                         </div>
-                        <AppEmptyState v-if="!(match.participants?.length)" title="Belum ada kontingen" size="sm" />
                     </div>
+                    <AppEmptyState v-else title="Belum ada lineup atlet" description="Atlet yang bertanding belum didaftarkan." size="sm" />
                 </template>
 
+                <!-- Juri -->
+                <template #juri>
+                    <div v-if="loadingExtra" class="muted">Memuat…</div>
+                    <div v-else-if="judges.length" class="judge-list">
+                        <div v-for="j in judges" :key="j.id" class="judge-item">
+                            <div class="judge-avatar">{{ initials(j.user?.name) }}</div>
+                            <div class="judge-body">
+                                <span class="judge-name">{{ j.user?.name ?? '—' }}</span>
+                                <span class="judge-email">{{ j.user?.email ?? '' }}</span>
+                            </div>
+                            <AppBadge color="primary" size="sm">{{ j.role ?? 'Juri' }}</AppBadge>
+                        </div>
+                    </div>
+                    <AppEmptyState v-else title="Belum ada juri ditugaskan" size="sm" />
+                </template>
+
+                <!-- Info -->
                 <template #info>
                     <div class="info-grid">
+                        <div class="info-item"><span class="info-label">Cabor</span><span class="info-value">{{ match.sport_category?.sport?.name ?? '—' }}</span></div>
+                        <div class="info-item"><span class="info-label">Sub-cabor</span><span class="info-value">{{ match.sport_category?.name ?? '—' }}</span></div>
+                        <div class="info-item"><span class="info-label">Venue</span><span class="info-value">{{ match.venue?.name ?? '—' }}<template v-if="match.venue?.address"> — {{ match.venue.address }}</template></span></div>
+                        <div class="info-item"><span class="info-label">Jadwal</span><span class="info-value">{{ formatTime(match.scheduled_at) }}</span></div>
                         <div class="info-item"><span class="info-label">Ronde</span><span class="info-value">{{ match.round ?? '—' }}</span></div>
                         <div class="info-item"><span class="info-label">Durasi</span><span class="info-value">{{ match.duration_minutes ? match.duration_minutes + ' menit' : '—' }}</span></div>
+                        <div class="info-item"><span class="info-label">Dibuat oleh</span><span class="info-value">{{ match.created_by?.name ?? '—' }}</span></div>
                         <div class="info-item"><span class="info-label">Catatan</span><span class="info-value">{{ match.notes ?? '—' }}</span></div>
                     </div>
                 </template>
             </AppTabs>
         </div>
 
-        <AppModal v-model:open="showConfirm" :title="`Ubah status → ${pendingLabel}`" size="sm">
+        <AppModal v-model="showConfirm" :title="`Ubah status → ${pendingLabel}`" size="sm">
             <p style="font-size:13px;color:var(--color-text-muted)">
                 Konfirmasi ubah status <strong>{{ match?.match_code }}</strong> menjadi <strong>{{ pendingLabel }}</strong>?
             </p>
@@ -57,16 +229,27 @@
                 <AppButton variant="primary" :loading="changing" @click="applyStatus">Konfirmasi</AppButton>
             </template>
         </AppModal>
+
+        <AppModal v-model="showFinish" title="Selesaikan Pertandingan?" size="sm">
+            <p style="font-size:13px;color:var(--color-text-muted)">
+                Skor saat ini akan dikunci sebagai <strong>hasil akhir</strong> {{ match?.match_code }} dan status menjadi <strong>Selesai</strong>. Hasil masih dapat diralat setelahnya. Lanjutkan?
+            </p>
+            <template #footer>
+                <AppButton variant="secondary" @click="showFinish = false">Batal</AppButton>
+                <AppButton variant="primary" :loading="finishing" @click="finishMatch">Ya, Selesaikan</AppButton>
+            </template>
+        </AppModal>
     </SimporaLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { Pencil } from '@lucide/vue';
 import api            from '@/lib/axios';
 import { decodeId, encodeId } from '@/lib/hashid';
 import { useNotFound } from '@/Composables/useNotFound';
 import { useToast }   from '@/Composables/useToast';
+import { useAuth }    from '@/Composables/useAuth';
 import SimporaLayout  from '@/Layouts/SimporaLayout.vue';
 import AppCard        from '@/Components/App/AppCard.vue';
 import AppButton      from '@/Components/App/AppButton.vue';
@@ -76,21 +259,118 @@ import AppTabs        from '@/Components/App/AppTabs.vue';
 import AppDropdown    from '@/Components/App/AppDropdown.vue';
 import AppModal       from '@/Components/App/AppModal.vue';
 import AppEmptyState  from '@/Components/App/AppEmptyState.vue';
+import ContingentLogo from '@/Components/App/ContingentLogo.vue';
 
 interface Props { id: string | number }
 const props = defineProps<Props>();
 const { notFound } = useNotFound();
 const toast = useToast();
+const { user, isSuperAdmin } = useAuth();
 const realId = decodeId(props.id);
 
-const activeTab   = ref('kontingen');
-const tabs = [{ key: 'kontingen', label: 'Kontingen' }, { key: 'info', label: 'Info' }];
+// ── State penilaian (scoring) ────────────────────────────────────────────────
+const scoreForm   = reactive({ home: 0, away: 0 });
+const setsForm    = ref<{ home: number; away: number }[]>([]);
+const rankValues  = reactive<Record<number, string>>({});
+const savingScore = ref(false);
+const finishing   = ref(false);
+const showFinish  = ref(false);
+
+const activeTab   = ref('lineup');
+const tabs = [{ key: 'lineup', label: 'Atlet' }, { key: 'juri', label: 'Juri' }, { key: 'info', label: 'Info' }];
 const match       = ref<any>(null);
+const result      = ref<any>(null);
+const judges      = ref<any[]>([]);
+const lineups     = ref<any[]>([]);
+const medals      = ref<any[]>([]);
+const loadingExtra = ref(true);
 const showConfirm = ref(false);
 const pendingStatus = ref('');
 const changing    = ref(false);
 
-// Transisi status sesuai GUIDE_API.md §13
+// ── Derived: kontingen map & jenis pertandingan ──────────────────────────────
+const contingentMap = computed<Record<number, any>>(() => {
+    const m: Record<number, any> = {};
+    for (const p of match.value?.participants ?? []) {
+        if (p.contingent) m[p.contingent_id ?? p.contingent.id] = p.contingent;
+    }
+    return m;
+});
+
+const scoringType = computed(() => result.value?.scoring_type ?? match.value?.sport_category?.scoring_type ?? null);
+const kind = computed<'versus' | 'ranking'>(() => {
+    const st = scoringType.value;
+    if (st === 'score' || st === 'point') return 'versus';
+    if (st === 'time' || st === 'distance' || st === 'rank') return 'ranking';
+    // fallback: jika ada side home/away → versus
+    return (match.value?.participants ?? []).some((p: any) => p.side) ? 'versus' : 'ranking';
+});
+
+const hasResult = computed(() => !!result.value?.result_data);
+
+// Versus
+const homeP = computed(() => (match.value?.participants ?? []).find((p: any) => p.side === 'home') ?? match.value?.participants?.[0] ?? null);
+const awayP = computed(() => (match.value?.participants ?? []).find((p: any) => p.side === 'away') ?? match.value?.participants?.[1] ?? null);
+const homeC = computed(() => homeP.value?.contingent ?? null);
+const awayC = computed(() => awayP.value?.contingent ?? null);
+const homeScore = computed(() => result.value?.result_data?.score?.home ?? result.value?.result_data?.home ?? 0);
+const awayScore = computed(() => result.value?.result_data?.score?.away ?? result.value?.result_data?.away ?? 0);
+const sets = computed<any[]>(() => result.value?.result_data?.sets ?? []);
+const versusWinner = computed(() => {
+    if (!hasResult.value) return null;
+    if (homeScore.value === awayScore.value) return null;
+    return homeScore.value > awayScore.value ? 'home' : 'away';
+});
+
+// Ranking
+const rankingRows = computed<any[]>(() => {
+    const ranks = result.value?.result_data?.ranks;
+    if (Array.isArray(ranks)) return [...ranks].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+    return [];
+});
+
+// Lineup digrup per kontingen
+const lineupGroups = computed(() => {
+    const groups: Record<number, any> = {};
+    for (const l of lineups.value) {
+        const c = l.match_participant?.contingent;
+        const cid = c?.id ?? l.match_participant?.contingent_id;
+        if (cid == null) continue;
+        if (!groups[cid]) groups[cid] = { contingent_id: cid, name: c?.name, short_name: c?.short_name, wilayah_kode: c?.wilayah_kode, athletes: [] };
+        groups[cid].athletes.push({
+            id: l.id,
+            name: l.participant?.person?.nama_lengkap,
+            gender: l.participant?.person?.jenis_kelamin,
+            jersey_number: l.jersey_number,
+        });
+    }
+    for (const g of Object.values(groups)) g.athletes.sort((a: any, b: any) => (a.jersey_number ?? 99) - (b.jersey_number ?? 99));
+    return Object.values(groups);
+});
+
+const medalOrder: Record<string, number> = { gold: 0, silver: 1, bronze: 2 };
+const medalsSorted = computed(() => [...medals.value].sort((a, b) => (medalOrder[a.medal] ?? 9) - (medalOrder[b.medal] ?? 9)));
+
+// ── Penilaian: hak akses & mode ──────────────────────────────────────────────
+const isBo3 = computed(() => kind.value === 'versus' && !!match.value?.sport_category?.uses_bo3);
+const canScore = computed(() =>
+    isSuperAdmin.value || judges.value.some(j => (j.user?.id ?? j.user_id) === user.value?.id)
+);
+// Penilaian hanya saat pertandingan berlangsung & oleh super admin / juri ditugaskan.
+const isScoring = computed(() => match.value?.status === 'ongoing' && canScore.value);
+
+const bo3Home = computed(() => setsForm.value.filter(s => (Number(s.home) || 0) > (Number(s.away) || 0)).length);
+const bo3Away = computed(() => setsForm.value.filter(s => (Number(s.away) || 0) > (Number(s.home) || 0)).length);
+const rankPlaceholder = computed(() =>
+    scoringType.value === 'time' ? 'mm:ss.SS' : scoringType.value === 'distance' ? 'meter' : 'nilai'
+);
+const rankHint = computed(() =>
+    scoringType.value === 'time'     ? 'Waktu terkecil = juara. Format bebas asal konsisten (mis. 00:51.23).'
+    : scoringType.value === 'distance' ? 'Jarak terbesar (meter) = juara.'
+    : 'Nilai terbesar = juara.'
+);
+
+// ── Status transitions (GUIDE_API.md §13) ────────────────────────────────────
 const TRANSITIONS: Record<string, string[]> = {
     scheduled: ['ongoing', 'postponed', 'cancelled'],
     ongoing:   ['finished', 'postponed', 'cancelled'],
@@ -98,7 +378,6 @@ const TRANSITIONS: Record<string, string[]> = {
     cancelled: ['scheduled'],
     finished:  [],
 };
-
 const statusMenuItems = computed(() => {
     const cur = match.value?.status;
     if (!cur) return [];
@@ -118,7 +397,119 @@ async function fetchMatch() {
     } catch (e: any) {
         if (e?.response?.status === 404) { notFound(); return; }
     }
+    fetchExtras();
 }
+
+async function safeGet(url: string) {
+    try {
+        const res = await api.get(url);
+        const raw = res.data?.data;
+        return Array.isArray(raw) ? raw.filter(Boolean) : raw;
+    } catch { return null; }
+}
+
+async function fetchExtras() {
+    loadingExtra.value = true;
+    const [res, jd, ln, md] = await Promise.all([
+        safeGet(`/api/v1/matches/${realId}/result`),
+        safeGet(`/api/v1/matches/${realId}/judges`),
+        safeGet(`/api/v1/matches/${realId}/lineups`),
+        safeGet(`/api/v1/matches/${realId}/medals`),
+    ]);
+    result.value  = res ?? null;
+    judges.value  = Array.isArray(jd) ? jd : [];
+    lineups.value = Array.isArray(ln) ? ln : [];
+    medals.value  = Array.isArray(md) ? md : [];
+    loadingExtra.value = false;
+    syncScoreForm();
+}
+
+/** Isi form penilaian dari hasil yang sudah ada (atau default kosong). */
+function syncScoreForm() {
+    const rd = result.value?.result_data;
+    if (kind.value === 'versus') {
+        if (isBo3.value) {
+            setsForm.value = Array.isArray(rd?.sets) && rd.sets.length
+                ? rd.sets.map((s: any) => ({ home: Number(s.home) || 0, away: Number(s.away) || 0 }))
+                : [{ home: 0, away: 0 }];
+        } else {
+            scoreForm.home = Number(rd?.score?.home ?? rd?.home ?? 0);
+            scoreForm.away = Number(rd?.score?.away ?? rd?.away ?? 0);
+        }
+    } else {
+        const ranks = rd?.ranks;
+        for (const p of match.value?.participants ?? []) {
+            const cid = p.contingent_id ?? p.contingent?.id;
+            if (cid == null) continue;
+            const found = Array.isArray(ranks) ? ranks.find((r: any) => r.contingent_id === cid) : null;
+            rankValues[cid] = found ? String(found.result ?? '') : (rankValues[cid] ?? '');
+        }
+    }
+}
+
+function addSet()      { if (setsForm.value.length < 3) setsForm.value.push({ home: 0, away: 0 }); }
+function removeSet(i: number) { if (setsForm.value.length > 1) setsForm.value.splice(i, 1); }
+
+/** Susun result_data sesuai jenis penilaian (sesuai shape backend). */
+function buildResultData(): any {
+    if (kind.value === 'versus') {
+        if (isBo3.value) {
+            const sets = setsForm.value.map(s => ({ home: Number(s.home) || 0, away: Number(s.away) || 0 }));
+            const homeSets = sets.filter(s => s.home > s.away).length;
+            const awaySets = sets.filter(s => s.away > s.home).length;
+            return { home: homeSets, away: awaySets, score: { home: homeSets, away: awaySets }, sets };
+        }
+        const home = Number(scoreForm.home) || 0;
+        const away = Number(scoreForm.away) || 0;
+        return { home, away, score: { home, away } };
+    }
+    // ranking (time/distance/rank)
+    const st = scoringType.value;
+    const entries = (match.value?.participants ?? [])
+        .map((p: any) => {
+            const cid = p.contingent_id ?? p.contingent?.id;
+            return { contingent_id: cid, value: rankValues[cid] ?? '' };
+        })
+        .filter((e: any) => e.value !== '' && e.value != null);
+    entries.sort((a: any, b: any) =>
+        st === 'time' ? String(a.value).localeCompare(String(b.value))
+                      : (parseFloat(b.value) || 0) - (parseFloat(a.value) || 0)
+    );
+    const ranks = entries.map((e: any, i: number) => ({ rank: i + 1, contingent_id: e.contingent_id, result: e.value }));
+    return { result: entries[0]?.value ?? null, rank: ranks.map((r: any) => r.contingent_id), ranks };
+}
+
+async function saveScore(): Promise<boolean> {
+    savingScore.value = true;
+    try {
+        const result_data = buildResultData();
+        if (result.value) await api.put(`/api/v1/matches/${realId}/result`,  { result_data });
+        else              await api.post(`/api/v1/matches/${realId}/result`, { result_data });
+        toast.success('Skor tersimpan');
+        result.value = (await safeGet(`/api/v1/matches/${realId}/result`)) ?? result.value;
+        return true;
+    } catch (e: any) {
+        toast.error(e?.response?.data?.message ?? 'Gagal menyimpan skor');
+        return false;
+    } finally { savingScore.value = false; }
+}
+
+async function finishMatch() {
+    finishing.value = true;
+    try {
+        if (!result.value) {
+            const ok = await saveScore();
+            if (!ok) return;
+        }
+        await api.patch(`/api/v1/matches/${realId}/status`, { status: 'finished' });
+        toast.success('Pertandingan diselesaikan');
+        showFinish.value = false;
+        fetchMatch();
+    } catch (e: any) {
+        toast.error(e?.response?.data?.message ?? 'Gagal menyelesaikan pertandingan');
+    } finally { finishing.value = false; }
+}
+
 function openConfirm(s: string) { pendingStatus.value = s; showConfirm.value = true; }
 async function applyStatus() {
     changing.value = true;
@@ -133,6 +524,16 @@ async function applyStatus() {
 }
 onMounted(fetchMatch);
 
+// ── Formatters ───────────────────────────────────────────────────────────────
+function cap(s?: string | null) { return s ? s.replace(/\b\w/g, c => c.toUpperCase()) : s ?? null; }
+function initials(name?: string | null) {
+    if (!name) return '?';
+    return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase()).join('');
+}
+function formatRankValue(v: any) {
+    if (v == null || v === '') return '—';
+    return String(v);
+}
 function formatTime(dt: string) {
     if (!dt) return '—';
     const d = new Date(dt);
@@ -148,6 +549,18 @@ function statusLabel(s: string) {
 function statusEmoji(s: string) {
     return ({ ongoing: '▶', finished: '✅', postponed: '⏸', scheduled: '📅', cancelled: '✖' } as Record<string,string>)[s] ?? '';
 }
+function medalEmoji(rank: number) {
+    return ({ 1: '🥇', 2: '🥈', 3: '🥉' } as Record<number,string>)[rank] ?? '';
+}
+function medalIconByName(m: string) {
+    return ({ gold: '🥇', silver: '🥈', bronze: '🥉' } as Record<string,string>)[m] ?? '🏅';
+}
+function medalLabel(m: string) {
+    return ({ gold: 'Emas', silver: 'Perak', bronze: 'Perunggu' } as Record<string,string>)[m] ?? m;
+}
+function medalColor(m: string) {
+    return ({ gold: 'warning', silver: 'default', bronze: 'danger' } as Record<string, 'warning' | 'default' | 'danger'>)[m] ?? 'default';
+}
 </script>
 
 <style scoped>
@@ -156,17 +569,101 @@ function statusEmoji(s: string) {
 .match-info     { flex: 1; }
 .match-code     { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--color-text-subtle); letter-spacing: 0.08em; margin-bottom: 4px; }
 .match-name     { font-size: 20px; font-weight: 700; color: var(--color-text-primary); margin-bottom: 8px; }
-.match-meta     { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--color-text-muted); flex-wrap: wrap; }
+.match-meta     { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--color-text-muted); flex-wrap: wrap; }
+.meta-chip      { white-space: nowrap; }
 .match-actions  { display: flex; gap: 8px; flex-shrink: 0; }
-.kontingen-list { display: flex; flex-direction: column; gap: 4px; }
-.kontingen-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-border); }
-.kontingen-item:last-child { border-bottom: none; }
-.logo-sm        { width: 32px; height: 32px; border-radius: 8px; background: var(--color-accent-subtle); color: var(--color-accent); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; text-transform: uppercase; }
-.kontingen-name { flex: 1; font-weight: 500; font-size: 13.5px; }
+
+/* Scoreboard */
+.scoreboard          { position: relative; }
+.scoreboard.is-final { border-color: var(--color-accent); }
+.scoreboard-status   { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-subtle); margin-bottom: 16px; }
+.dot                 { width: 7px; height: 7px; border-radius: 50%; background: var(--color-text-subtle); display: inline-block; }
+.dot-final           { background: var(--color-accent); }
+
+.versus       { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.vs-side      { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 8px; border-radius: 12px; transition: background .2s; }
+.vs-side.winner { background: var(--color-accent-subtle); }
+.vs-name      { font-weight: 600; font-size: 14px; text-transform: capitalize; }
+.vs-score     { display: flex; align-items: center; gap: 10px; font-size: 40px; font-weight: 800; font-family: var(--font-mono); color: var(--color-text-primary); }
+.vs-score .sep { color: var(--color-text-subtle); font-weight: 400; }
+.vs-score .win { color: var(--color-accent); }
+.vs-pending   { font-size: 22px; font-weight: 700; color: var(--color-text-subtle); letter-spacing: 0.1em; }
+
+.sets         { display: flex; justify-content: center; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.set-cell     { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 12px; border: 1px solid var(--color-border); border-radius: 8px; min-width: 64px; }
+.set-label    { font-size: 10px; font-weight: 600; color: var(--color-text-subtle); text-transform: uppercase; letter-spacing: 0.05em; }
+.set-score    { font-family: var(--font-mono); font-size: 15px; font-weight: 700; }
+.set-score b  { font-weight: 700; }
+.set-score .win { color: var(--color-accent); }
+
+.ranking      { display: flex; flex-direction: column; gap: 2px; }
+.rank-row     { display: flex; align-items: center; gap: 12px; padding: 9px 4px; border-bottom: 1px solid var(--color-border); }
+.rank-row:last-child { border-bottom: none; }
+.rank-pos     { width: 28px; text-align: center; font-weight: 800; font-size: 14px; color: var(--color-text-muted); }
+.rank-pos[data-medal="true"] { font-size: 18px; }
+.rank-name    { flex: 1; font-weight: 600; font-size: 14px; text-transform: capitalize; }
+.rank-val     { font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--color-text-primary); }
+
+.result-notes { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--color-border); font-size: 12.5px; color: var(--color-text-muted); }
+.score-hint   { margin-top: 16px; padding: 10px 12px; border-radius: 8px; background: var(--color-accent-subtle); font-size: 12.5px; color: var(--color-text-muted); }
+
+/* Penilaian (scoring editor) */
+.scoreboard.scoring  { border-color: var(--color-success); }
+.scoring-status      { color: var(--color-success); }
+.score-input         { width: 88px; text-align: center; font-family: var(--font-mono); font-size: 22px; font-weight: 800; padding: 6px 8px; border: 1.5px solid var(--color-border); border-radius: 10px; background: var(--color-bg-subtle); color: var(--color-text-primary); outline: none; }
+.score-input:focus   { border-color: var(--color-accent); }
+.score-input.sm      { width: 64px; font-size: 17px; }
+.score-input.rank-in { width: 120px; font-size: 14px; font-weight: 600; }
+.bo3-editor   { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.bo3-head     { display: grid; grid-template-columns: 64px 1fr 64px; gap: 16px; width: min(420px, 100%); text-align: center; font-size: 12px; font-weight: 700; color: var(--color-text-muted); text-transform: capitalize; }
+.bo3-row      { display: grid; grid-template-columns: 64px 1fr 64px; gap: 16px; align-items: center; width: min(420px, 100%); }
+.bo3-label    { text-align: center; font-size: 12px; font-weight: 600; color: var(--color-text-subtle); display: flex; align-items: center; justify-content: center; gap: 6px; }
+.set-x        { border: none; background: var(--color-danger); color: #fff; width: 18px; height: 18px; border-radius: 50%; font-size: 13px; line-height: 1; cursor: pointer; }
+.add-set      { border: 1.5px dashed var(--color-border); background: transparent; color: var(--color-text-muted); border-radius: 8px; padding: 6px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.add-set:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.bo3-current  { font-size: 13px; color: var(--color-text-muted); margin-top: 4px; }
+.bo3-current .win { color: var(--color-accent); }
+.rank-editor  { display: flex; flex-direction: column; gap: 6px; }
+.rank-edit-row { display: flex; align-items: center; gap: 12px; padding: 6px 4px; }
+.rank-hint    { font-size: 12px; color: var(--color-text-subtle); margin-top: 6px; }
+.scoring-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--color-border); }
+
+/* Medali */
+.section-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; color: var(--color-text-primary); }
+.medal-list    { display: flex; flex-direction: column; gap: 6px; }
+.medal-item    { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--color-border); }
+.medal-item:last-child { border-bottom: none; }
+.medal-icon    { font-size: 22px; }
+.medal-body    { flex: 1; display: flex; flex-direction: column; }
+.medal-cont    { font-weight: 600; font-size: 13.5px; text-transform: capitalize; }
+.medal-person  { font-size: 12px; color: var(--color-text-muted); text-transform: capitalize; }
+
+/* Lineup */
+.lineup-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; padding-top: 4px; }
+.lineup-group  { border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; }
+.lineup-head   { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--color-surface-2, var(--color-accent-subtle)); font-weight: 600; font-size: 13.5px; text-transform: capitalize; }
+.lineup-count  { margin-left: auto; font-size: 11px; font-weight: 500; color: var(--color-text-muted); text-transform: none; }
+.lineup-athletes { display: flex; flex-direction: column; }
+.athlete-row   { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--color-border); }
+.jersey        { width: 26px; height: 26px; border-radius: 6px; background: var(--color-accent-subtle); color: var(--color-accent); font-size: 12px; font-weight: 700; font-family: var(--font-mono); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.athlete-name  { flex: 1; font-size: 13px; font-weight: 500; text-transform: capitalize; }
+.athlete-gender { font-size: 11px; color: var(--color-text-muted); }
+
+/* Juri */
+.judge-list    { display: flex; flex-direction: column; gap: 4px; padding-top: 4px; }
+.judge-item    { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-border); }
+.judge-item:last-child { border-bottom: none; }
+.judge-avatar  { width: 36px; height: 36px; border-radius: 50%; background: var(--color-accent-subtle); color: var(--color-accent); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.judge-body    { flex: 1; display: flex; flex-direction: column; }
+.judge-name    { font-weight: 600; font-size: 13.5px; }
+.judge-email   { font-size: 12px; color: var(--color-text-muted); }
+
 .info-grid   { display: flex; flex-direction: column; gap: 14px; padding-top: 4px; }
-.info-item   { display: flex; align-items: center; gap: 12px; }
-.info-label  { font-size: 12px; font-weight: 600; color: var(--color-text-muted); width: 90px; flex-shrink: 0; }
+.info-item   { display: flex; align-items: flex-start; gap: 12px; }
+.info-label  { font-size: 12px; font-weight: 600; color: var(--color-text-muted); width: 100px; flex-shrink: 0; }
 .info-value  { font-size: 13.5px; color: var(--color-text-primary); }
-.pulse-dot   { display: inline-block; width: 7px; height: 7px; background: var(--color-success); border-radius: 50%; margin-right: 4px; animation: pulse 1.5s ease-in-out infinite; }
+
+.muted       { font-size: 13px; color: var(--color-text-muted); padding: 12px 0; }
+.pulse-dot   { display: inline-block; width: 7px; height: 7px; background: var(--color-success); border-radius: 50%; margin-right: 2px; animation: pulse 1.5s ease-in-out infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 </style>

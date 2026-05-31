@@ -61,9 +61,10 @@
                                 </td>
                                 <td class="dt-td">
                                     <div class="kontingen-chips">
-                                        <AppBadge v-for="p in (m.participants ?? [])" :key="p.id" color="default" size="sm">
-                                            {{ p.contingent?.short_name ?? p.contingent?.name ?? '—' }}
-                                        </AppBadge>
+                                        <span v-for="p in (m.participants ?? [])" :key="p.id" class="kontingen-chip" :title="p.contingent?.name ?? ''">
+                                            <ContingentLogo :contingent="p.contingent" :size="20" :radius="5" />
+                                            <span class="kontingen-chip__name">{{ p.contingent?.short_name ?? p.contingent?.name ?? '—' }}</span>
+                                        </span>
                                     </div>
                                 </td>
                                 <td class="dt-td dt-td--actions">
@@ -93,6 +94,7 @@ import SimporaLayout from '@/Layouts/SimporaLayout.vue';
 import AppButton     from '@/Components/App/AppButton.vue';
 import AppCard       from '@/Components/App/AppCard.vue';
 import AppBadge      from '@/Components/App/AppBadge.vue';
+import ContingentLogo from '@/Components/App/ContingentLogo.vue';
 import AppEmptyState from '@/Components/App/AppEmptyState.vue';
 import AppDatePicker from '@/Components/App/AppDatePicker.vue';
 
@@ -179,7 +181,9 @@ function statusLabel(s: string) {
 .dt-name     { font-weight: 500; }
 .text-muted  { color: var(--color-text-muted); }
 .match-code  { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--color-text-muted); }
-.kontingen-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.kontingen-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.kontingen-chip  { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 3px; border-radius: 999px; background: var(--color-bg-subtle); border: 1px solid var(--color-border); }
+.kontingen-chip__name { font-size: 11px; font-weight: 600; color: var(--color-text-muted); letter-spacing: 0.02em; }
 .action-btns { display: flex; gap: 4px; justify-content: flex-end; }
 .pulse-dot   { display: inline-block; width: 7px; height: 7px; background: var(--color-success); border-radius: 50%; margin-right: 4px; animation: pulse 1.5s ease-in-out infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }

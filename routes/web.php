@@ -19,8 +19,10 @@ Route::get('/persons/{id}',      fn ($id) => Inertia::render('Persons/Show', ['i
 Route::get('/persons/{id}/edit', fn ($id) => Inertia::render('Persons/Form', ['id' => $id]))->name('persons.edit');
 
 // ── Master Data: Contingents ──────────────────────────────────
-Route::get('/contingents',        fn () => Inertia::render('Contingents/Index'))->name('contingents.index');
-Route::get('/contingents/{id}',   fn ($id) => Inertia::render('Contingents/Show', ['id' => $id]))->name('contingents.show');
+Route::get('/contingents',          fn () => Inertia::render('Contingents/Index'))->name('contingents.index');
+Route::get('/contingents/create',   fn () => Inertia::render('Contingents/Form'))->name('contingents.create');
+Route::get('/contingents/{id}/edit',fn ($id) => Inertia::render('Contingents/Form', ['id' => $id]))->name('contingents.edit');
+Route::get('/contingents/{id}',     fn ($id) => Inertia::render('Contingents/Show', ['id' => $id]))->name('contingents.show');
 
 // ── Peserta ───────────────────────────────────────────────────
 Route::get('/participants',          fn () => Inertia::render('Participants/Index'))->name('participants.index');
@@ -77,6 +79,9 @@ Route::get('/users',          fn () => Inertia::render('Users/Index'))->name('us
 Route::get('/users/create',   fn () => Inertia::render('Users/Form'))->name('users.create');
 Route::get('/users/{id}/edit',fn ($id) => Inertia::render('Users/Form', ['id' => $id]))->name('users.edit');
 Route::get('/profile',        fn () => Inertia::render('Profile/Index'))->name('profile.index');
+
+// ── Dev / Tools (super-admin only — guard di komponen) ────────
+Route::get('/dev/seeder', fn () => Inertia::render('Dev/Seeder'))->name('dev.seeder');
 
 // ── Error pages ───────────────────────────────────────────────
 Route::get('/404', fn () => Inertia::render('Error404'))->name('error.404');

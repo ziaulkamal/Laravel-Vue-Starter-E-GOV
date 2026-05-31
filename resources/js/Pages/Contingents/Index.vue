@@ -6,7 +6,7 @@
                     <h1 class="page-title">Kontingen</h1>
                     <p class="page-subtitle">{{ total }} kontingen PORA XV Aceh Jaya 2026</p>
                 </div>
-                <AppButton variant="primary" size="md">+ Tambah Kontingen</AppButton>
+                <AppButton variant="primary" size="md" @click="$inertia.visit('/contingents/create')">+ Tambah Kontingen</AppButton>
             </div>
 
             <!-- Filter -->
@@ -40,7 +40,7 @@
             <div v-else-if="contingents.length" class="contingent-grid">
                 <AppCard v-for="c in contingents" :key="c.id" class="contingent-card" padding="none" hoverable>
                     <div class="contingent-card__body">
-                        <div class="logo-placeholder">{{ c.short_name }}</div>
+                        <ContingentLogo :contingent="c" :size="48" :radius="12" />
                         <div class="contingent-card__info">
                             <div class="contingent-card__name">{{ c.name }}</div>
                             <div class="contingent-card__short">{{ c.short_name }}</div>
@@ -80,9 +80,10 @@ import AppButton     from '@/Components/App/AppButton.vue';
 import AppCard       from '@/Components/App/AppCard.vue';
 import AppBadge      from '@/Components/App/AppBadge.vue';
 import AppEmptyState from '@/Components/App/AppEmptyState.vue';
+import ContingentLogo from '@/Components/App/ContingentLogo.vue';
 
 interface Contingent {
-    id: number; name: string; short_name: string;
+    id: number; name: string; short_name: string; wilayah_kode?: string | null;
     is_active: boolean; wilayah?: { kode: string; nama: string } | null;
 }
 
@@ -145,7 +146,6 @@ onMounted(fetchContingents);
 .contingent-card        { padding: 16px; }
 .contingent-card :deep(.app-card__body) { flex: 1; display: flex; flex-direction: column; gap: 14px; }
 .contingent-card__body  { display: flex; gap: 14px; align-items: flex-start; }
-.logo-placeholder       { width: 48px; height: 48px; border-radius: 12px; background: var(--color-accent-subtle); color: var(--color-accent); font-weight: 700; font-size: 11px; line-height: 1.1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; text-transform: uppercase; overflow: hidden; padding: 0 3px; text-align: center; word-break: break-all; }
 .contingent-card__info  { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 .contingent-card__name  { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
 .contingent-card__short { font-size: 11px; color: var(--color-text-subtle); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
