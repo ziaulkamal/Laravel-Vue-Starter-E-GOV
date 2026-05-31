@@ -11,7 +11,7 @@
         <link rel="preconnect" href="https://fonts.bunny.net" />
 
         <!-- Styles & Scripts -->
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @vite(['resources/css/app.css', 'resources/js/app.ts'])
 
         <!-- Inertia -->
         @inertiaHead

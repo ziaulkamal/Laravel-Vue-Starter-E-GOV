@@ -131,7 +131,7 @@
                             <div class="topbar__menu-divider" />
 
                             <div class="topbar__menu-items">
-                                <button class="topbar__menu-item topbar__menu-item--danger" @click="userMenuOpen = false">
+                                <button class="topbar__menu-item topbar__menu-item--danger" @click="userMenuOpen = false; $emit('logout')">
                                     <LogOut :size="14" /> Sign out
                                 </button>
                             </div>
@@ -161,7 +161,7 @@ const props = defineProps({
     isMobile:          { type: Boolean, default: false },
 });
 
-defineEmits(['toggle-sidebar', 'toggle-theme', 'open-notifications', 'open-user-menu']);
+defineEmits(['toggle-sidebar', 'toggle-theme', 'open-notifications', 'open-user-menu', 'logout']);
 
 const searchQuery      = ref('');
 const searchFocused    = ref(false);

@@ -32,15 +32,19 @@
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco,
         Consolas, 'Liberation Mono', 'Courier New', monospace;
 
-    /* --- Accent / Brand — THE single color clients change to rebrand --- */
-    --color-accent:        #6366f1;   /* change this to rebrand everything */
-    --color-accent-to:     #8b5cf6;   /* gradient endpoint */
-    --color-accent-hover:  #4f46e5;   /* darker hover state */
+    /* --- Accent / Brand — Hijau Aceh SIMPORA 2026 --- */
+    --color-accent:        #0f6b40;
+    --color-accent-to:     #1a9a5c;
+    --color-accent-hover:  #0a5232;
 
-    /* Legacy alias so existing var(--color-primary) references still resolve */
-    --color-primary:       #6366f1;
-    --color-primary-hover: #4f46e5;
-    --color-primary-light: rgba(99, 102, 241, 0.08);
+    /* Gold PORA — badge premium, label event */
+    --color-gold:          #b78c2b;
+    --color-gold-light:    rgba(183, 140, 43, 0.12);
+
+    /* Legacy alias */
+    --color-primary:       #0f6b40;
+    --color-primary-hover: #0a5232;
+    --color-primary-light: rgba(15, 107, 64, 0.08);
 
     /* --- Surface & Background --- */
     --color-surface:    #ffffff;
@@ -70,8 +74,8 @@
     --color-sidebar-bg:          #ffffff;
     --color-sidebar-border:      #e2e8f0;
     --color-sidebar-text:        #475569;
-    --color-sidebar-text-active: #6366f1;
-    --color-sidebar-bg-active:   rgba(99, 102, 241, 0.08);
+    --color-sidebar-text-active: #0f6b40;
+    --color-sidebar-bg-active:   rgba(15, 107, 64, 0.08);
     --color-sidebar-icon:        #94a3b8;
     --color-topbar-bg:           #ffffff;
     --color-topbar-border:       #e2e8f0;
@@ -124,12 +128,12 @@
    Dark Mode Token Overrides
    ============================================================ */
 .dark {
-    --color-accent:        #818cf8;
-    --color-accent-to:     #a78bfa;
-    --color-accent-hover:  #6366f1;
-    --color-primary:       #818cf8;
-    --color-primary-hover: #6366f1;
-    --color-primary-light: rgba(129, 140, 248, 0.12);
+    --color-accent:        #34d17a;
+    --color-accent-to:     #4ade80;
+    --color-accent-hover:  #1a9a5c;
+    --color-primary:       #34d17a;
+    --color-primary-hover: #1a9a5c;
+    --color-primary-light: rgba(52, 209, 122, 0.12);
 
     --color-surface:    #1e293b;
     --color-bg:         #0f172a;
@@ -154,8 +158,8 @@
     --color-sidebar-bg:          #0f172a;
     --color-sidebar-border:      #1e293b;
     --color-sidebar-text:        #94a3b8;
-    --color-sidebar-text-active: #818cf8;
-    --color-sidebar-bg-active:   rgba(129, 140, 248, 0.12);
+    --color-sidebar-text-active: #34d17a;
+    --color-sidebar-bg-active:   rgba(52, 209, 122, 0.12);
     --color-sidebar-icon:        #64748b;
     --color-topbar-bg:           #0f172a;
     --color-topbar-border:       #1e293b;

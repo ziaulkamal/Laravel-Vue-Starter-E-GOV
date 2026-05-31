@@ -1,74 +1,143 @@
 <template>
-    <div class="dp" ref="wrapRef">
-        <!-- Trigger input -->
-        <div
-            class="dp__input"
-            :class="{ 'dp__input--open': open, 'dp__input--range': range }"
-            @click="open = !open"
+    <div ref="wrapRef" class="dp-wrap">
+        <!-- Label -->
+        <label v-if="label" class="dp-label">
+            {{ label }}<span v-if="required" class="dp-label__req"> *</span>
+        </label>
+
+        <!-- Trigger -->
+        <button
+            type="button"
+            class="dp-trigger"
+            :class="{ 'dp-trigger--open': isOpen, 'dp-trigger--filled': !!displayText }"
+            :disabled="disabled"
+            @click="toggle"
         >
-            <CalendarIcon :size="14" class="dp__input-icon" />
-            <span class="dp__input-text" :class="{ 'dp__input-text--placeholder': !displayText }">
+            <CalendarDays :size="15" class="dp-trigger__icon" />
+            <span class="dp-trigger__text" :class="{ 'dp-trigger__text--ph': !displayText }">
                 {{ displayText || placeholder }}
             </span>
-            <button v-if="displayText" class="dp__input-clear" @click.stop="clear">
-                <XIcon :size="12" />
+            <button
+                v-if="displayText"
+                type="button"
+                class="dp-trigger__clear"
+                @click.stop="clear"
+                tabindex="-1"
+            >
+                <X :size="13" />
             </button>
-        </div>
+            <ChevronDown v-else :size="14" class="dp-trigger__chevron" :class="{ 'dp-trigger__chevron--up': isOpen }" />
+        </button>
 
-        <!-- Dropdown panel -->
-        <Transition name="dp-drop">
-            <div v-if="open" class="dp__panel">
-                <!-- Header -->
-                <div class="dp__head">
-                    <button class="dp__nav" @click="prevMonth"><ChevronLeftIcon :size="15" /></button>
-                    <button class="dp__month-label" @click="viewMode = viewMode === 'days' ? 'months' : 'days'">
-                        {{ monthLabel }} {{ viewYear }}
+        <!-- Error -->
+        <p v-if="error" class="dp-error">{{ error }}</p>
+
+        <!-- Panel -->
+        <Transition name="dp-fade">
+            <div v-if="isOpen" class="dp-panel" :class="dropUp ? 'dp-panel--up' : ''">
+
+                <!-- ── Header: nav bulan & tahun ── -->
+                <div class="dp-head">
+                    <button type="button" class="dp-nav" @click="prevMonth">
+                        <ChevronLeft :size="15" />
                     </button>
-                    <button class="dp__nav" @click="nextMonth"><ChevronRightIcon :size="15" /></button>
-                </div>
 
-                <!-- Month picker -->
-                <div v-if="viewMode === 'months'" class="dp__months">
-                    <button
-                        v-for="(m, i) in MONTHS"
-                        :key="m"
-                        class="dp__month-btn"
-                        :class="{ 'dp__month-btn--active': i === viewMonth }"
-                        @click="viewMonth = i; viewMode = 'days'"
-                    >{{ m }}</button>
-                </div>
+                    <div class="dp-head__center">
+                        <!-- Bulan — klik untuk grid, atau ketik nama/angka -->
+                        <div class="dp-month-inp-wrap">
+                            <input
+                                ref="monthInputRef"
+                                v-model="monthQuery"
+                                class="dp-month-inp"
+                                :placeholder="MONTHS_ID[viewMonth]"
+                                maxlength="10"
+                                autocomplete="off"
+                                @click="openMonthGrid"
+                                @input="viewMode = 'months'"
+                                @keydown.enter.prevent="applyMonthQuery"
+                                @keydown.escape.prevent="closeMonthGrid"
+                            />
+                            <span class="dp-month-inp__caret">
+                                <ChevronDown :size="10" />
+                            </span>
+                        </div>
 
-                <!-- Days grid -->
-                <template v-else>
-                    <div class="dp__weekdays">
-                        <span v-for="d in WEEKDAYS" :key="d" class="dp__weekday">{{ d }}</span>
+                        <!-- Tahun — ketik langsung -->
+                        <div class="dp-year">
+                            <button type="button" class="dp-year__nav" @click="viewYear--">
+                                <ChevronLeft :size="11" />
+                            </button>
+                            <input
+                                v-model.number="yearInput"
+                                class="dp-year__input"
+                                type="number"
+                                min="1900"
+                                max="2100"
+                                @blur="applyYear"
+                                @keydown.enter.prevent="applyYear"
+                                @focus="($event.target as HTMLInputElement).select()"
+                            />
+                            <button type="button" class="dp-year__nav" @click="viewYear++">
+                                <ChevronRight :size="11" />
+                            </button>
+                        </div>
                     </div>
-                    <div class="dp__days">
+
+                    <button type="button" class="dp-nav" @click="nextMonth">
+                        <ChevronRight :size="15" />
+                    </button>
+                </div>
+
+                <!-- ── Month picker — difilter saat mengetik ── -->
+                <div v-if="viewMode === 'months'" class="dp-months">
+                    <template v-if="filteredMonths.length">
+                        <button
+                            v-for="{ idx, name } in filteredMonths"
+                            :key="idx"
+                            type="button"
+                            class="dp-month-btn"
+                            :class="{ 'dp-month-btn--active': idx === viewMonth }"
+                            @click="selectMonth(idx)"
+                        >{{ name }}</button>
+                    </template>
+                    <p v-else class="dp-months__empty">Tidak ditemukan</p>
+                </div>
+
+                <!-- ── Calendar ── -->
+                <template v-else>
+                    <!-- Nama hari — mulai Senin -->
+                    <div class="dp-weekdays">
+                        <span v-for="d in DAYS_ID" :key="d" class="dp-weekday">{{ d }}</span>
+                    </div>
+
+                    <div class="dp-grid">
                         <button
                             v-for="cell in cells"
                             :key="cell.key"
-                            class="dp__day"
+                            type="button"
+                            class="dp-day"
                             :class="{
-                                'dp__day--outside':  cell.outside,
-                                'dp__day--today':    cell.today,
-                                'dp__day--selected': cell.selected,
-                                'dp__day--range-in': cell.inRange,
-                                'dp__day--range-start': cell.rangeStart,
-                                'dp__day--range-end':   cell.rangeEnd,
+                                'dp-day--outside':  cell.outside,
+                                'dp-day--today':    cell.today,
+                                'dp-day--selected': cell.selected,
+                                'dp-day--weekend':  cell.weekend,
                             }"
                             :disabled="cell.disabled"
                             @click="selectDay(cell.date)"
-                            @mouseenter="hovering = cell.date"
                         >
                             {{ cell.day }}
                         </button>
                     </div>
                 </template>
 
-                <!-- Footer -->
-                <div class="dp__footer">
-                    <button class="dp__today-btn" @click="goToday">Today</button>
-                    <button v-if="range && rangeStart && !rangeEnd" class="dp__range-hint">Pick end date</button>
+                <!-- ── Footer ── -->
+                <div class="dp-footer">
+                    <button type="button" class="dp-footer__today" @click="selectToday">
+                        Hari Ini
+                    </button>
+                    <span v-if="displayText" class="dp-footer__selected">
+                        {{ displayText }}
+                    </span>
                 </div>
             </div>
         </Transition>
@@ -77,130 +146,140 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
-import { CalendarIcon, XIcon, ChevronLeftIcon, ChevronRightIcon } from '@lucide/vue';
+import { CalendarDays, ChevronLeft, ChevronRight, ChevronDown, X } from '@lucide/vue';
 
-const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const MONTHS   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const DAYS_ID   = ['Sen','Sel','Rab','Kam','Jum','Sab','Min'];
 
-const props = defineProps({
-    modelValue: { default: null },
-    range:      { type: Boolean, default: false },
-    placeholder:{ type: String,  default: 'Pick a date' },
-    minDate:    { default: null },
-    maxDate:    { default: null },
-    format:     { type: String,  default: 'MMM D, YYYY' },
+interface Props {
+    modelValue?: string | null   // format YYYY-MM-DD
+    label?:      string
+    placeholder?: string
+    disabled?:   boolean
+    required?:   boolean
+    error?:      string | null
+    minDate?:    string | null
+    maxDate?:    string | null
+    dropUp?:     boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    modelValue:  null,
+    label:       '',
+    placeholder: 'Pilih tanggal...',
+    disabled:    false,
+    required:    false,
+    error:       null,
+    minDate:     null,
+    maxDate:     null,
+    dropUp:      false,
 });
 
-const emit = defineEmits<{
-    'update:modelValue': [value: Date | [Date, Date] | null];
-}>();
+const emit = defineEmits<{ 'update:modelValue': [v: string | null] }>();
 
-const wrapRef    = ref<HTMLElement | null>(null);
-const open       = ref(false);
-const viewMode   = ref<'days' | 'months'>('days');
-const hovering   = ref<Date | null>(null);
+const wrapRef      = ref<HTMLElement | null>(null);
+const monthInputRef= ref<HTMLInputElement | null>(null);
+const isOpen       = ref(false);
+const viewMode     = ref<'days' | 'months'>('days');
+const monthQuery   = ref('');       // teks yang diketik di input bulan
+const yearInput    = ref(0);        // nilai yang diketik di input tahun
 
-const today = new Date();
-today.setHours(0,0,0,0);
-
+const today     = new Date(); today.setHours(0, 0, 0, 0);
 const viewYear  = ref(today.getFullYear());
 const viewMonth = ref(today.getMonth());
 
-const rangeStart = ref<Date | null>(null);
-const rangeEnd   = ref<Date | null>(null);
-const single     = ref<Date | null>(null);
+// Sync yearInput ↔ viewYear
+watch(viewYear, v => { yearInput.value = v; }, { immediate: true });
 
-watch(() => props.modelValue, (v) => {
-    if (!v) { single.value = null; rangeStart.value = null; rangeEnd.value = null; return; }
-    if (props.range && Array.isArray(v)) { rangeStart.value = v[0]; rangeEnd.value = v[1]; }
-    else if (!props.range) { single.value = v as Date; }
-}, { immediate: true });
-
-const monthLabel = computed(() => MONTHS[viewMonth.value]);
-
-function fmt(d: Date): string {
-    return props.format
-        .replace('YYYY', String(d.getFullYear()))
-        .replace('MMM',  MONTHS[d.getMonth()])
-        .replace('MM',   String(d.getMonth() + 1).padStart(2, '0'))
-        .replace('D',    String(d.getDate()))
-        .replace('DD',   String(d.getDate()).padStart(2, '0'));
-}
-
-const displayText = computed(() => {
-    if (props.range) {
-        if (rangeStart.value && rangeEnd.value)
-            return `${fmt(rangeStart.value)} — ${fmt(rangeEnd.value)}`;
-        if (rangeStart.value) return fmt(rangeStart.value);
-        return '';
-    }
-    return single.value ? fmt(single.value) : '';
+// Bulan yang difilter berdasarkan query (nama atau angka 1-12)
+const filteredMonths = computed(() => {
+    const q = monthQuery.value.trim().toLowerCase();
+    return MONTHS_ID
+        .map((name, idx) => ({ idx, name }))
+        .filter(({ idx, name }) => {
+            if (!q) return true;
+            const num = parseInt(q, 10);
+            if (!isNaN(num)) return idx === num - 1;          // ketik angka 1-12
+            return name.toLowerCase().startsWith(q);          // ketik nama
+        });
 });
 
-const cells = computed(() => {
-    const first = new Date(viewYear.value, viewMonth.value, 1);
-    const startPad = first.getDay();
-    const result = [];
-    for (let i = startPad - 1; i >= 0; i--) {
-        const d = new Date(viewYear.value, viewMonth.value, -i);
-        result.push(makeCell(d, true));
-    }
-    const days = new Date(viewYear.value, viewMonth.value + 1, 0).getDate();
-    for (let i = 1; i <= days; i++) {
-        result.push(makeCell(new Date(viewYear.value, viewMonth.value, i), false));
-    }
-    while (result.length % 7 !== 0) {
-        const d = new Date(viewYear.value, viewMonth.value + 1, result.length - days - startPad + 1);
-        result.push(makeCell(d, true));
-    }
-    return result;
-});
-
-function makeCell(date: Date, outside: boolean) {
-    const ts   = date.getTime();
-    const hov  = hovering.value?.getTime();
-    const rs   = rangeStart.value?.getTime();
-    const re   = rangeEnd.value?.getTime();
-    const sel  = single.value?.getTime();
-    const isToday   = ts === today.getTime();
-    const selected  = props.range ? (ts === rs || ts === re) : ts === sel;
-    const rangeStart_ = props.range && ts === rs;
-    const rangeEnd_   = props.range && ts === re;
-    const inRange = props.range && rs && (re
-        ? ts > rs && ts < re
-        : hov ? (ts > Math.min(rs, hov) && ts < Math.max(rs, hov)) : false);
-    const disabled = !!(
-        (props.minDate && ts < (props.minDate as Date).getTime()) ||
-        (props.maxDate && ts > (props.maxDate as Date).getTime())
-    );
-    return { date, day: date.getDate(), key: ts, outside, today: isToday, selected, inRange, rangeStart: rangeStart_, rangeEnd: rangeEnd_, disabled };
+function applyYear() {
+    const y = Math.max(1900, Math.min(2100, yearInput.value || today.getFullYear()));
+    viewYear.value  = y;
+    yearInput.value = y;
 }
 
-function selectDay(d: Date) {
-    if (!props.range) {
-        single.value = d;
-        emit('update:modelValue', d);
-        open.value = false;
-        return;
+function applyMonthQuery() {
+    // Pilih hasil pertama yang cocok lalu kembali ke kalender
+    if (filteredMonths.value.length >= 1) {
+        viewMonth.value  = filteredMonths.value[0].idx;
+        closeMonthGrid();
     }
-    if (!rangeStart.value || (rangeStart.value && rangeEnd.value)) {
-        rangeStart.value = d; rangeEnd.value = null;
-    } else {
-        if (d < rangeStart.value) { rangeEnd.value = rangeStart.value; rangeStart.value = d; }
-        else rangeEnd.value = d;
-        emit('update:modelValue', [rangeStart.value, rangeEnd.value]);
-        open.value = false;
+}
+
+function openMonthGrid() {
+    monthQuery.value = '';
+    viewMode.value   = 'months';
+}
+
+function selectMonth(idx: number) {
+    viewMonth.value = idx;
+    closeMonthGrid();
+}
+
+function closeMonthGrid() {
+    viewMode.value   = 'days';
+    monthQuery.value = '';
+}
+
+// Parse modelValue → seed view ke bulan/tahun yg dipilih
+function parseValue(v: string | null | undefined): Date | null {
+    if (!v) return null;
+    const d = new Date(v + 'T00:00:00');
+    return isNaN(d.getTime()) ? null : d;
+}
+
+function formatDate(d: Date): string {
+    const y  = d.getFullYear();
+    const m  = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
+}
+
+function displayFormat(d: Date): string {
+    const day  = String(d.getDate()).padStart(2, '0');
+    const mon  = MONTHS_ID[d.getMonth()];
+    const year = d.getFullYear();
+    return `${day} ${mon} ${year}`;
+}
+
+const selected = computed(() => parseValue(props.modelValue));
+
+const displayText = computed(() =>
+    selected.value ? displayFormat(selected.value) : ''
+);
+
+function toggle() {
+    if (props.disabled) return;
+    isOpen.value = !isOpen.value;
+    if (isOpen.value && selected.value) {
+        viewYear.value  = selected.value.getFullYear();
+        viewMonth.value = selected.value.getMonth();
     }
 }
 
 function clear() {
-    single.value = null; rangeStart.value = null; rangeEnd.value = null;
     emit('update:modelValue', null);
 }
 
-function goToday() {
-    viewYear.value = today.getFullYear(); viewMonth.value = today.getMonth();
-    if (!props.range) { selectDay(new Date(today)); }
+function selectDay(d: Date) {
+    emit('update:modelValue', formatDate(d));
+    isOpen.value = false;
+}
+
+function selectToday() {
+    selectDay(new Date(today));
 }
 
 function prevMonth() {
@@ -212,113 +291,266 @@ function nextMonth() {
     else viewMonth.value++;
 }
 
+// ── Bangun grid kalender (mulai Senin) ──────────────────────────
+const cells = computed(() => {
+    const result: any[] = [];
+    const firstDay = new Date(viewYear.value, viewMonth.value, 1);
+    // ISO: 0=Sun → ubah ke Mon-start: Mon=0…Sun=6
+    let startDow = firstDay.getDay(); // 0=Sun,1=Mon,...
+    startDow = startDow === 0 ? 6 : startDow - 1;
+
+    // Isi tanggal bulan sebelumnya
+    for (let i = startDow - 1; i >= 0; i--) {
+        const d = new Date(viewYear.value, viewMonth.value, -i);
+        result.push(makeCell(d, true));
+    }
+
+    const daysInMonth = new Date(viewYear.value, viewMonth.value + 1, 0).getDate();
+    for (let i = 1; i <= daysInMonth; i++) {
+        result.push(makeCell(new Date(viewYear.value, viewMonth.value, i), false));
+    }
+
+    // Isi tanggal bulan berikutnya agar grid penuh
+    let next = 1;
+    while (result.length % 7 !== 0) {
+        result.push(makeCell(new Date(viewYear.value, viewMonth.value + 1, next++), true));
+    }
+
+    return result;
+});
+
+function makeCell(date: Date, outside: boolean) {
+    const ts      = date.getTime();
+    const todayTs = today.getTime();
+    const selTs   = selected.value?.getTime();
+    const dow     = date.getDay(); // 0=Sun,6=Sat
+    const isWeekend = dow === 0 || dow === 6;
+
+    const minTs = props.minDate ? new Date(props.minDate + 'T00:00:00').getTime() : null;
+    const maxTs = props.maxDate ? new Date(props.maxDate + 'T00:00:00').getTime() : null;
+    const disabled = (minTs !== null && ts < minTs) || (maxTs !== null && ts > maxTs);
+
+    return {
+        date, day: date.getDate(), key: ts, outside,
+        today:    ts === todayTs,
+        selected: ts === selTs,
+        weekend:  isWeekend,
+        disabled,
+    };
+}
+
+// Close on outside click
 function onOutside(e: MouseEvent) {
-    if (wrapRef.value && !wrapRef.value.contains(e.target as Node)) open.value = false;
+    if (wrapRef.value && !wrapRef.value.contains(e.target as Node)) isOpen.value = false;
 }
 onMounted(() => document.addEventListener('mousedown', onOutside));
 onBeforeUnmount(() => document.removeEventListener('mousedown', onOutside));
 </script>
 
 <style scoped>
-.dp { position: relative; display: inline-block; }
+.dp-wrap { position: relative; display: flex; flex-direction: column; gap: 5px; }
 
-.dp__input {
+/* ── Label ── */
+.dp-label      { font-size: 12.5px; font-weight: 600; color: var(--color-text-primary); letter-spacing: -0.01em; }
+.dp-label__req { color: var(--color-danger); }
+.dp-error      { font-size: 11.5px; color: var(--color-danger); margin-top: 2px; }
+
+/* ── Trigger ── */
+.dp-trigger {
     display: flex; align-items: center; gap: 8px;
-    border: 1.5px solid var(--color-border); border-radius: 9px;
-    padding: 8px 12px; background: var(--color-surface);
-    cursor: pointer; min-width: 180px; transition: border-color 150ms ease;
-    user-select: none;
+    width: 100%; min-height: 38px; padding: 0 10px 0 12px;
+    border: 1.5px solid var(--color-border); border-radius: 8px;
+    background: var(--color-surface); cursor: pointer; text-align: left;
+    font-family: var(--font-sans); font-size: 13.5px;
+    color: var(--color-text-primary);
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+    outline: none;
 }
-.dp__input:hover { border-color: color-mix(in srgb, #6366f1 40%, var(--color-border)); }
-.dp__input--open { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
-.dp__input-icon { color: var(--color-text-subtle); flex-shrink: 0; }
-.dp__input-text { flex: 1; font-size: 13px; color: var(--color-text-primary); }
-.dp__input-text--placeholder { color: var(--color-text-subtle); }
-.dp__input-clear {
+.dp-trigger:hover:not(:disabled) { border-color: var(--color-border-strong); }
+.dp-trigger--open,
+.dp-trigger:focus-visible {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 15%, transparent);
+}
+.dp-trigger:disabled { opacity: 0.55; cursor: not-allowed; background: var(--color-bg-subtle); }
+
+.dp-trigger__icon    { color: var(--color-accent); flex-shrink: 0; }
+.dp-trigger__text    { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-trigger__text--ph{ color: var(--color-text-subtle); }
+
+.dp-trigger__clear {
     display: flex; align-items: center; border: none; background: transparent;
-    cursor: pointer; color: var(--color-text-subtle); padding: 0;
+    cursor: pointer; color: var(--color-text-subtle); padding: 3px;
+    border-radius: 4px; transition: color 120ms, background 120ms; flex-shrink: 0;
 }
-.dp__input-clear:hover { color: var(--color-text-primary); }
+.dp-trigger__clear:hover { color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 8%, transparent); }
 
-.dp__panel {
-    position: absolute; top: calc(100% + 6px); left: 0; z-index: 200;
-    background: var(--color-surface); border: 1.5px solid var(--color-border);
-    border-radius: 12px; padding: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-    min-width: 260px;
+.dp-trigger__chevron { color: var(--color-text-subtle); flex-shrink: 0; transition: transform 200ms ease; }
+.dp-trigger__chevron--up { transform: rotate(180deg); }
+
+/* ── Panel ── */
+.dp-panel {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 300;
+    background: var(--color-surface);
+    border: 1.5px solid var(--color-border);
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06);
+    padding: 14px;
+    min-width: 300px;
+    width: 300px;
 }
+.dp-panel--up { top: auto; bottom: calc(100% + 6px); }
 
-.dp-drop-enter-active, .dp-drop-leave-active { transition: all 160ms ease; }
-.dp-drop-enter-from, .dp-drop-leave-to { opacity: 0; transform: translateY(-6px) scale(0.97); }
-
-.dp__head {
+/* ── Header ── */
+.dp-head {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 10px;
+    margin-bottom: 12px; gap: 6px;
 }
-.dp__nav {
-    display: flex; align-items: center; justify-content: center;
-    width: 28px; height: 28px; border-radius: 7px; border: none;
-    background: transparent; cursor: pointer; color: var(--color-text-muted);
-    transition: background 120ms ease;
+.dp-head__center {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
 }
-.dp__nav:hover { background: var(--color-bg-subtle); color: var(--color-text-primary); }
-.dp__month-label {
-    font-size: 13px; font-weight: 700; color: var(--color-text-primary);
+.dp-head__label {
+    font-size: 14px; font-weight: 700; color: var(--color-text-primary);
     border: none; background: transparent; cursor: pointer;
-    font-family: var(--font-sans); padding: 4px 8px; border-radius: 6px;
-    transition: background 120ms ease;
+    font-family: var(--font-sans); padding: 2px 8px; border-radius: 6px;
+    transition: background 120ms;
+    line-height: 1.2;
 }
-.dp__month-label:hover { background: var(--color-bg-subtle); }
+.dp-head__label:hover { background: var(--color-bg-subtle); }
 
-.dp__months {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 8px;
+/* Year navigation */
+/* ── Month input ── */
+.dp-month-inp-wrap {
+    position: relative; display: flex; align-items: center;
 }
-.dp__month-btn {
-    padding: 8px 4px; border-radius: 7px; border: none;
+.dp-month-inp {
+    font-size: 14px; font-weight: 700; color: var(--color-text-primary);
+    border: none; background: transparent; cursor: pointer;
+    font-family: var(--font-sans); padding: 2px 20px 2px 8px;
+    border-radius: 6px; outline: none; text-align: center;
+    width: 108px;
+    transition: background 120ms;
+}
+.dp-month-inp::placeholder { color: var(--color-text-primary); font-weight: 700; }
+.dp-month-inp:hover, .dp-month-inp:focus {
+    background: var(--color-bg-subtle);
+    cursor: text;
+}
+.dp-month-inp__caret {
+    position: absolute; right: 5px; color: var(--color-text-subtle);
+    pointer-events: none; display: flex; align-items: center;
+}
+
+/* ── Year input ── */
+.dp-year { display: flex; align-items: center; gap: 2px; }
+.dp-year__input {
+    font-size: 12px; font-weight: 600; color: var(--color-text-muted);
+    width: 44px; text-align: center; border: none; background: transparent;
+    font-family: var(--font-sans); outline: none; padding: 2px 4px; border-radius: 4px;
+    /* Sembunyikan arrow number input */
+    -moz-appearance: textfield;
+    transition: background 100ms;
+}
+.dp-year__input::-webkit-outer-spin-button,
+.dp-year__input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.dp-year__input:hover, .dp-year__input:focus {
+    background: var(--color-bg-subtle); color: var(--color-text-primary); cursor: text;
+}
+.dp-year__nav {
+    display: flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 4px; border: none;
+    background: transparent; cursor: pointer; color: var(--color-text-subtle);
+    transition: background 100ms;
+}
+.dp-year__nav:hover { background: var(--color-bg-subtle); color: var(--color-text-primary); }
+
+.dp-nav {
+    display: flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 8px; border: none;
+    background: transparent; cursor: pointer; color: var(--color-text-muted);
+    transition: background 100ms, color 100ms; flex-shrink: 0;
+}
+.dp-nav:hover { background: var(--color-bg-subtle); color: var(--color-text-primary); }
+
+/* ── Month picker grid ── */
+.dp-months {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 6px;
+}
+.dp-month-btn {
+    padding: 8px 4px; border-radius: 8px; border: none;
     background: transparent; cursor: pointer; font-size: 12.5px;
     font-family: var(--font-sans); color: var(--color-text-muted);
-    transition: all 120ms ease;
+    transition: all 120ms;
 }
-.dp__month-btn:hover { background: var(--color-bg-subtle); color: var(--color-text-primary); }
-.dp__month-btn--active { background: #6366f1; color: #fff; font-weight: 600; }
-.dp__month-btn--active:hover { background: #4f46e5; }
+.dp-month-btn:hover { background: var(--color-bg-subtle); color: var(--color-text-primary); }
+.dp-month-btn--active {
+    background: var(--color-accent); color: #fff; font-weight: 600;
+}
+.dp-month-btn--active:hover { background: var(--color-accent-hover); }
+.dp-months__empty {
+    grid-column: 1 / -1; text-align: center; padding: 16px 0;
+    font-size: 12px; color: var(--color-text-subtle); margin: 0;
+}
 
-.dp__weekdays {
-    display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4px;
+/* ── Weekday headers ── */
+.dp-weekdays {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 6px;
 }
-.dp__weekday {
-    text-align: center; font-size: 10.5px; font-weight: 700;
+.dp-weekday {
+    text-align: center; font-size: 10px; font-weight: 700;
     color: var(--color-text-subtle); text-transform: uppercase;
-    letter-spacing: 0.06em; padding: 4px 0;
+    letter-spacing: 0.04em; padding: 3px 0;
 }
 
-.dp__days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
-.dp__day {
+/* ── Day grid ── */
+.dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+
+.dp-day {
     aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
-    border-radius: 7px; border: none; background: transparent;
+    border-radius: 8px; border: none; background: transparent;
     font-size: 12.5px; font-family: var(--font-sans); cursor: pointer;
     color: var(--color-text-primary); transition: all 100ms ease;
+    font-weight: 400;
 }
-.dp__day:hover:not(:disabled) { background: var(--color-bg-subtle); }
-.dp__day--outside { color: var(--color-text-subtle); }
-.dp__day--today { font-weight: 700; color: #6366f1; }
-.dp__day--selected { background: #6366f1 !important; color: #fff; font-weight: 600; border-radius: 7px; }
-.dp__day--range-in { background: rgba(99,102,241,0.1); border-radius: 0; }
-.dp__day--range-start { background: #6366f1; color: #fff; border-radius: 7px 0 0 7px; }
-.dp__day--range-end   { background: #6366f1; color: #fff; border-radius: 0 7px 7px 0; }
-.dp__day:disabled { opacity: 0.3; cursor: not-allowed; }
+.dp-day:hover:not(:disabled):not(.dp-day--selected) {
+    background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+    color: var(--color-accent); font-weight: 600;
+}
+.dp-day--outside  { color: var(--color-text-subtle); opacity: 0.45; }
+.dp-day--weekend:not(.dp-day--outside):not(.dp-day--selected) { color: var(--color-accent); }
+.dp-day--today:not(.dp-day--selected) {
+    font-weight: 800; border: 1.5px solid var(--color-accent);
+    color: var(--color-accent);
+}
+.dp-day--selected {
+    background: var(--color-accent) !important;
+    color: #fff !important; font-weight: 700;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+.dp-day:disabled { opacity: 0.25; cursor: not-allowed; }
 
-.dp__footer {
-    display: flex; align-items: center; gap: 8px; margin-top: 10px;
-    padding-top: 10px; border-top: 1px solid var(--color-border);
+/* ── Footer ── */
+.dp-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid var(--color-border);
 }
-.dp__today-btn {
-    font-size: 12px; font-weight: 500; color: #6366f1;
+.dp-footer__today {
+    font-size: 12px; font-weight: 600; color: var(--color-accent);
     border: none; background: transparent; cursor: pointer;
-    font-family: var(--font-sans); padding: 0;
+    font-family: var(--font-sans); padding: 3px 8px; border-radius: 6px;
+    transition: background 120ms;
 }
-.dp__today-btn:hover { text-decoration: underline; }
-.dp__range-hint {
-    font-size: 11.5px; color: var(--color-text-subtle);
-    border: none; background: transparent; padding: 0; font-family: var(--font-sans);
+.dp-footer__today:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
+.dp-footer__selected {
+    font-size: 11.5px; color: var(--color-text-muted); font-weight: 500;
 }
+
+/* ── Transition ── */
+.dp-fade-enter-active { transition: all 160ms cubic-bezier(0.16,1,0.3,1); }
+.dp-fade-leave-active { transition: all 100ms ease; }
+.dp-fade-enter-from, .dp-fade-leave-to { opacity: 0; transform: translateY(-8px) scale(0.97); }
 </style>

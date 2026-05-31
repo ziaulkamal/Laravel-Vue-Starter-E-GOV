@@ -34,6 +34,7 @@
                 @toggle-sidebar="toggleSidebar"
                 @toggle-theme="toggleTheme"
                 @open-notifications="$emit('open-notifications')"
+                @logout="$emit('logout')"
             />
 
             <main class="layout-main">
@@ -41,6 +42,11 @@
             </main>
         </div>
 
+        <!-- ── Toast region global (Teleport ke body) ── -->
+        <AppToast />
+
+        <!-- ── Overlay "tidak ditemukan" (blur + redirect) ── -->
+        <NotFoundOverlay />
     </div>
 </template>
 
@@ -49,6 +55,8 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useTheme } from '@/Composables/useTheme';
 import AppSidebar from '@/Components/App/AppSidebar.vue';
 import AppTopbar  from '@/Components/App/AppTopbar.vue';
+import AppToast   from '@/Components/App/AppToast.vue';
+import NotFoundOverlay from '@/Components/App/NotFoundOverlay.vue';
 import { BREAKPOINT_MOBILE, BREAKPOINT_TABLET } from '@/config/layout';
 import {
     LayoutDashboard, Users, Kanban, Mail, MessageSquare,
@@ -84,7 +92,7 @@ const props = defineProps({
     notificationCount: { type: Number, default: 0 },
 });
 
-defineEmits(['open-search', 'open-notifications', 'open-user-menu']);
+defineEmits(['open-search', 'open-notifications', 'open-user-menu', 'logout']);
 
 // ── Theme ──────────────────────────────────────────────────────
 const { isDark, toggleTheme } = useTheme();

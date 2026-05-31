@@ -8,7 +8,7 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 
 createInertiaApp({
-    title: (title) => title ? `${title} — CRM` : 'CRM',
+    title: (title) => title ? `${title} — SIMPORA 2026` : 'SIMPORA 2026',
 
     resolve: (name: string) =>
         resolvePageComponent(

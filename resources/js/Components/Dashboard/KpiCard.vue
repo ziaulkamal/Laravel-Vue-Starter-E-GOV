@@ -34,7 +34,7 @@ import { TrendingUpIcon, TrendingDownIcon } from '@lucide/vue';
 
 const props = defineProps({
     label:     { type: String,  default: '' },
-    value:     { type: String,  default: '0' },
+    value:     { type: [String, Number], default: 0 },
     sub:       { type: String,  default: '' },
     trend:     { type: Number,  default: 0 },
     color:     { type: String,  default: '#6366f1' },
