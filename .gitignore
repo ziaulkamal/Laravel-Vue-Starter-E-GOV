@@ -26,3 +26,10 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Internal docs (AI context / desain / perencanaan) — tetap lokal, tidak ke GitHub. README.md tetap dilacak.
+/CLAUDE.md
+/DESIGN.md
+/DESIGN_SEPAKBOLA.md
+/PRD.md
+/TODO.md
