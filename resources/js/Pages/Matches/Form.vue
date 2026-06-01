@@ -74,6 +74,7 @@
                             :error="errors.duration_minutes"
                         />
                         <AppInput
+                            v-if="isEdit || !hasStaging"
                             v-model="form.round"
                             label="Ronde / Babak"
                             placeholder="Contoh: Penyisihan Grup A, Final"
@@ -91,6 +92,47 @@
                     <div class="form-field" style="margin-top:16px">
                         <AppTextarea v-model="form.notes" label="Catatan" placeholder="Catatan opsional" :rows="2" :error="errors.notes" />
                     </div>
+                </AppCard>
+
+                <!-- ── Fase (grup → gugur) untuk format league_knockout ── -->
+                <AppCard v-if="!isEdit && hasStaging">
+                    <div class="card-title">Fase Pertandingan</div>
+                    <div class="stage-toggle">
+                        <button type="button" :class="['stage-opt', { active: form.stage === 'group' }]" @click="form.stage = 'group'">🏁 Penyisihan Grup</button>
+                        <button type="button" :class="['stage-opt', { active: form.stage === 'knockout' }]" @click="form.stage = 'knockout'">🏆 Fase Gugur</button>
+                    </div>
+                    <div class="form-grid" style="margin-top:16px">
+                        <AppInput
+                            v-if="form.stage === 'group'"
+                            v-model="form.group_label"
+                            label="Label Grup"
+                            placeholder="Contoh: A"
+                            hint="Penanda grup (tim segrup pakai label sama)"
+                            :error="errors.group_label"
+                        />
+                        <AppSelectSearch
+                            v-if="form.stage === 'knockout'"
+                            v-model="form.round"
+                            label="Ronde Gugur"
+                            placeholder="Pilih ronde"
+                            :options="ROUND_OPTIONS"
+                            :error="errors.round"
+                        />
+                        <AppInput
+                            v-if="form.stage === 'knockout'"
+                            v-model="form.bracket_slot"
+                            type="number"
+                            label="Slot Bagan (opsional)"
+                            placeholder="mis. 1"
+                            hint="Urutan posisi di bagan"
+                            :error="errors.bracket_slot"
+                        />
+                    </div>
+                    <p class="stage-note">
+                        {{ form.stage === 'knockout'
+                            ? 'Laga gugur: skor imbang diselesaikan lewat adu penalti saat input hasil.'
+                            : 'Laga grup mengisi klasemen. Beri label grup yang sama untuk tim segrup.' }}
+                    </p>
                 </AppCard>
 
                 <!-- ── Kontingen (create saja — edit tidak mengubah peserta) ── -->
@@ -185,6 +227,9 @@ const form = reactive({
     time:              '',
     duration_minutes:  '90' as string | number,
     round:             '',
+    stage:             '',
+    group_label:       '',
+    bracket_slot:      '' as string | number,
     match_code:        '',
     notes:             '',
 });
@@ -205,6 +250,16 @@ const rankingList = ref<Option[]>([]);
 const selectedCategory = computed(() => categories.value.find(c => String(c.id) === form.sport_category_id) ?? null);
 const isVersus = computed(() => ['score', 'point'].includes(selectedCategory.value?.scoring_type));
 const usesBo3  = computed(() => isVersus.value && !!selectedCategory.value?.uses_bo3);
+// Format grup → gugur: tampilkan pemilih fase (grup/gugur)
+const hasStaging = computed(() => selectedCategory.value?.match_format === 'league_knockout');
+const ROUND_OPTIONS: Option[] = [
+    { value: '16-besar', label: '16 Besar' },
+    { value: '8-besar', label: '8 Besar' },
+    { value: 'perempatfinal', label: 'Perempat Final' },
+    { value: 'semifinal', label: 'Semifinal' },
+    { value: 'perebutan-3', label: 'Perebutan Juara 3' },
+    { value: 'final', label: 'Final' },
+];
 
 // Away tak boleh sama dengan home
 const awayOptions = computed(() => contingentOptions.value.filter(o => o.value !== versusHome.value));
@@ -273,6 +328,11 @@ function onSportChange() {
 function onCategoryChange() {
     // reset pilihan kontingen saat sub-cabor berganti (kind bisa berubah)
     versusHome.value = ''; versusAway.value = ''; rankingPick.value = ''; rankingList.value = [];
+    // default fase untuk format grup → gugur
+    form.stage = hasStaging.value ? 'group' : '';
+    form.group_label = '';
+    form.bracket_slot = '';
+    if (hasStaging.value) form.round = '';
 }
 
 // ── Edit: muat data match ──
@@ -356,7 +416,7 @@ async function submit() {
             toast.success('Jadwal berhasil diperbarui');
             router.visit(`/matches/${encodeId(realId)}`);
         } else {
-            await api.post('/api/v1/matches', {
+            const payload: Record<string, any> = {
                 sport_category_id: Number(form.sport_category_id),
                 venue_id:          Number(form.venue_id),
                 match_code:        form.match_code || null,
@@ -365,7 +425,14 @@ async function submit() {
                 duration_minutes:  Number(form.duration_minutes) || 90,
                 notes:             form.notes || null,
                 participants:      buildParticipants(),
-            });
+            };
+            // Fase grup/gugur (format league_knockout)
+            if (hasStaging.value) {
+                payload.stage = form.stage || 'group';
+                if (form.stage === 'group')    payload.group_label = form.group_label || null;
+                if (form.stage === 'knockout') payload.bracket_slot = form.bracket_slot ? Number(form.bracket_slot) : null;
+            }
+            await api.post('/api/v1/matches', payload);
             toast.success('Jadwal berhasil dibuat');
             router.visit('/matches');
         }
@@ -409,4 +476,9 @@ async function submit() {
 .chips-empty { margin-top: 12px; font-size: 12.5px; color: var(--color-text-subtle); }
 .field-error { margin-top: 10px; font-size: 11.5px; color: var(--color-danger); }
 .form-actions{ display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+.stage-toggle { display: flex; gap: 8px; }
+.stage-opt   { flex: 1; padding: 12px; border: 1.5px solid var(--color-border); border-radius: 10px; background: var(--color-bg-subtle); font-size: 13.5px; font-weight: 600; color: var(--color-text-muted); cursor: pointer; transition: border-color .15s ease, background .15s ease, color .15s ease; }
+.stage-opt:hover  { border-color: var(--color-accent); }
+.stage-opt.active { border-color: var(--color-accent); background: var(--color-accent-subtle); color: var(--color-accent); }
+.stage-note  { margin-top: 12px; font-size: 12px; color: var(--color-text-muted); line-height: 1.45; }
 </style>

@@ -207,10 +207,14 @@ async function saveSubCabor() {
 }
 onMounted(fetchVenue);
 
+// scheduled_at = wall-clock (backend UTC tanpa makna zona) → tampilkan apa adanya,
+// jangan konversi zona (new Date() langsung menggeser +7 → 15:13 jadi 22:13).
 function formatTime(dt: string) {
     if (!dt) return '—';
-    const d = new Date(dt);
-    return isNaN(d.getTime()) ? dt : d.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const m = String(dt).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    if (!m) return dt;
+    const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+    return d.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 function statusColor(s: string) {
     const m: Record<string, 'success' | 'info' | 'default' | 'warning'> = { scheduled: 'info', ongoing: 'success', finished: 'default', postponed: 'warning', cancelled: 'default' };

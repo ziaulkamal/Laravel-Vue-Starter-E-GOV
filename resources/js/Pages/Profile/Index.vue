@@ -60,7 +60,7 @@ import AppInput      from '@/Components/App/AppInput.vue';
 import AppTabs       from '@/Components/App/AppTabs.vue';
 
 const activeTab = ref('edit');
-const tabs = [{ key: 'edit', label: 'Edit Profil' }, { key: 'password', label: 'Ganti Password' }];
+const tabs = [{ value: 'edit', label: 'Edit Profil' }, { value: 'password', label: 'Ganti Password' }];
 
 const user = {
     name: 'Admin SIMPORA', email: 'admin@simpora.dev',

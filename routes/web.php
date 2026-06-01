@@ -43,6 +43,7 @@ Route::get('/sports/{id}',     fn ($id) => Inertia::render('Sports/Show', ['id' 
 Route::get('/sport-categories',          fn () => Inertia::render('SportCategories/Index'))->name('sport-categories.index');
 Route::get('/sport-categories/create',   fn () => Inertia::render('SportCategories/Form'))->name('sport-categories.create');
 Route::get('/sport-categories/{id}/edit',fn ($id) => Inertia::render('SportCategories/Form', ['id' => $id]))->name('sport-categories.edit');
+Route::get('/sport-categories/{id}',     fn ($id) => Inertia::render('SportCategories/Show', ['id' => $id]))->name('sport-categories.show');
 
 // ── Venue ─────────────────────────────────────────────────────
 Route::get('/venues',          fn () => Inertia::render('Venues/Index'))->name('venues.index');

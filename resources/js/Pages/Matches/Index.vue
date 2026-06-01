@@ -141,10 +141,13 @@ let debounce: ReturnType<typeof setTimeout>;
 watch([search, filterStatus, filterDate], () => { clearTimeout(debounce); debounce = setTimeout(fetchMatches, 350); });
 onMounted(fetchMatches);
 
+// scheduled_at = wall-clock (backend UTC, tanpa makna zona). Tampilkan apa adanya,
+// JANGAN konversi zona (kalau pakai new Date() langsung, browser geser +7 → 15:13 jadi 22:13).
 function formatTime(dt: string) {
     if (!dt) return '—';
-    const d = new Date(dt);
-    if (isNaN(d.getTime())) return dt;
+    const m = String(dt).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    if (!m) return dt;
+    const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
     return d.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 function statusColor(s: string) {

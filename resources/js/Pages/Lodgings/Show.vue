@@ -98,7 +98,7 @@ const realId = decodeId(props.id);
 const activeTab    = ref('info');
 const showAddModal = ref(false);
 const saving       = ref(false);
-const tabs = [{ key: 'info', label: 'Info' }, { key: 'alokasi', label: 'Alokasi Kamar' }];
+const tabs = [{ value: 'info', label: 'Info' }, { value: 'alokasi', label: 'Alokasi Kamar' }];
 
 const lodging     = ref<any>(null);
 const allocations = ref<any[]>([]);

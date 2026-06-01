@@ -89,9 +89,9 @@ const realId = decodeId(props.id);
 
 const activeTab = ref('dokumen');
 const tabs = [
-    { key: 'dokumen',  label: 'Dokumen' },
-    { key: 'subcabor', label: 'Sub-Cabor' },
-    { key: 'kartu',    label: 'Kartu' },
+    { value: 'dokumen',  label: 'Dokumen' },
+    { value: 'subcabor', label: 'Sub-Cabor' },
+    { value: 'kartu',    label: 'Kartu' },
 ];
 
 const participant   = ref<any>(null);

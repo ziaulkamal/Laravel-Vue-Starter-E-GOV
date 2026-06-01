@@ -64,6 +64,7 @@
                                     <td class="dt-td"><AppBadge :color="sc.is_active ? 'success' : 'default'" size="sm">{{ sc.is_active ? 'Aktif' : 'Nonaktif' }}</AppBadge></td>
                                     <td class="dt-td dt-td--actions">
                                         <div class="action-btns">
+                                            <AppButton size="xs" variant="ghost" title="Lihat (klasemen/bagan)" @click="$inertia.visit(`/sport-categories/${encodeId(sc.id)}`)"><Eye :size="14" /></AppButton>
                                             <AppButton
                                                 size="xs"
                                                 variant="ghost"
@@ -100,7 +101,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
-import { Search, Pencil, Power } from '@lucide/vue';
+import { Search, Pencil, Power, Eye } from '@lucide/vue';
 import api           from '@/lib/axios';
 import { encodeId }  from '@/lib/hashid';
 import { useToast }  from '@/Composables/useToast';

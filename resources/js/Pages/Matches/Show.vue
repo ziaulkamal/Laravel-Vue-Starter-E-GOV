@@ -11,7 +11,7 @@
                         <div class="match-meta">
                             <span v-if="match.sport_category?.sport?.name" class="meta-chip">🏅 {{ match.sport_category.sport.name }}</span>
                             <span class="meta-chip">📍 {{ match.venue?.name ?? '—' }}</span>
-                            <span class="meta-chip">🕐 {{ formatTime(match.scheduled_at) }}</span>
+                            <span class="meta-chip">🕐 {{ formatSchedule(match.scheduled_at) }}</span>
                             <span v-if="match.round" class="meta-chip">🔁 {{ match.round }}</span>
                             <AppBadge :color="statusColor(match.status)" size="md">
                                 <span v-if="match.status === 'ongoing'" class="pulse-dot" />
@@ -75,6 +75,17 @@
                     <p class="rank-hint">{{ rankHint }}</p>
                 </div>
 
+                <!-- Adu penalti (fase gugur, skor imbang) -->
+                <div v-if="needPenalty" class="penalty-box">
+                    <div class="penalty-title">⚽ Adu Penalti — skor imbang di fase gugur</div>
+                    <div class="penalty-inputs">
+                        <input type="number" min="0" class="score-input sm" v-model.number="penaltyForm.home" />
+                        <span class="penalty-sep">–</span>
+                        <input type="number" min="0" class="score-input sm" v-model.number="penaltyForm.away" />
+                    </div>
+                    <p class="penalty-hint">Wajib ada pemenang (skor adu penalti harus berbeda). Pemenang ditentukan server.</p>
+                </div>
+
                 <div class="scoring-actions">
                     <AppButton variant="secondary" :loading="savingScore" @click="saveScore">💾 Simpan Skor</AppButton>
                     <AppButton variant="primary" @click="showFinish = true">🏁 Selesaikan</AppButton>
@@ -115,6 +126,14 @@
                         <div class="vs-name">{{ cap(awayC?.name) ?? 'Kontingen B' }}</div>
                         <AppBadge size="sm" color="default">Away</AppBadge>
                     </div>
+                </div>
+
+                <!-- Adu penalti (read-only) -->
+                <div v-if="kind === 'versus' && penalty" class="pen-line">
+                    <span class="pen-tag">Adu Penalti</span>
+                    <b :class="{ win: versusWinner === 'home' }">{{ penalty.home }}</b>
+                    <span class="pen-dash">–</span>
+                    <b :class="{ win: versusWinner === 'away' }">{{ penalty.away }}</b>
                 </div>
 
                 <!-- Set breakdown (BO3) -->
@@ -230,6 +249,15 @@
 
                 <!-- Juri -->
                 <template #juri>
+                    <div v-if="canManageJudges" class="juri-toolbar">
+                        <span class="juri-toolbar__hint">{{ judges.length }} juri ditugaskan</span>
+                        <AppButton
+                            v-if="matchEditable"
+                            size="sm" variant="primary"
+                            @click="openAddJudge"
+                        >+ Tambah Juri</AppButton>
+                        <span v-else class="juri-toolbar__lock">Penugasan hanya saat status Terjadwal/Ditunda</span>
+                    </div>
                     <div v-if="loadingExtra" class="muted">Memuat…</div>
                     <div v-else-if="judges.length" class="judge-list">
                         <div v-for="j in judges" :key="j.id" class="judge-item">
@@ -239,6 +267,11 @@
                                 <span class="judge-email">{{ j.user?.email ?? '' }}</span>
                             </div>
                             <AppBadge color="primary" size="sm">{{ j.role ?? 'Juri' }}</AppBadge>
+                            <button
+                                v-if="canManageJudges && matchEditable"
+                                type="button" class="juri-del" title="Lepas juri"
+                                @click="removeJudge(j)"
+                            ><Trash2 :size="14" /></button>
                         </div>
                     </div>
                     <AppEmptyState v-else title="Belum ada juri ditugaskan" size="sm" />
@@ -250,7 +283,7 @@
                         <div class="info-item"><span class="info-label">Cabor</span><span class="info-value">{{ match.sport_category?.sport?.name ?? '—' }}</span></div>
                         <div class="info-item"><span class="info-label">Sub-cabor</span><span class="info-value">{{ match.sport_category?.name ?? '—' }}</span></div>
                         <div class="info-item"><span class="info-label">Venue</span><span class="info-value">{{ match.venue?.name ?? '—' }}<template v-if="match.venue?.address"> — {{ match.venue.address }}</template></span></div>
-                        <div class="info-item"><span class="info-label">Jadwal</span><span class="info-value">{{ formatTime(match.scheduled_at) }}</span></div>
+                        <div class="info-item"><span class="info-label">Jadwal</span><span class="info-value">{{ formatSchedule(match.scheduled_at) }}</span></div>
                         <div class="info-item"><span class="info-label">Ronde</span><span class="info-value">{{ match.round ?? '—' }}</span></div>
                         <div class="info-item"><span class="info-label">Durasi</span><span class="info-value">{{ match.duration_minutes ? match.duration_minutes + ' menit' : '—' }}</span></div>
                         <div class="info-item"><span class="info-label">Dibuat oleh</span><span class="info-value">{{ match.created_by?.name ?? '—' }}</span></div>
@@ -279,12 +312,38 @@
                 <AppButton variant="primary" :loading="finishing" @click="finishMatch">Ya, Selesaikan</AppButton>
             </template>
         </AppModal>
+
+        <AppModal v-model="showAddJudge" title="Tambah Juri" size="sm">
+            <div class="add-judge">
+                <AppSelectSearch
+                    v-model="judgePick"
+                    label="Juri (sesuai keahlian cabor)"
+                    placeholder="Pilih juri"
+                    :loading="loadingJudgeOpts"
+                    :options="judgeOptions"
+                />
+                <p v-if="!loadingJudgeOpts && !judgeOptions.length" class="add-judge__empty">
+                    Belum ada juri ber-keahlian untuk cabor <strong>{{ match?.sport_category?.sport?.name ?? '—' }}</strong>.
+                    Tambahkan keahlian dulu di menu <strong>Juri</strong> (Keahlian).
+                </p>
+                <AppSelectSearch
+                    v-model="judgeRole"
+                    label="Peran"
+                    placeholder="Pilih peran"
+                    :options="ROLE_OPTIONS"
+                />
+            </div>
+            <template #footer>
+                <AppButton variant="secondary" @click="showAddJudge = false">Batal</AppButton>
+                <AppButton variant="primary" :loading="savingJudge" :disabled="!judgePick" @click="addJudge">Tugaskan</AppButton>
+            </template>
+        </AppModal>
     </SimporaLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
-import { Pencil } from '@lucide/vue';
+import { Pencil, Trash2 } from '@lucide/vue';
 import api            from '@/lib/axios';
 import { decodeId, encodeId } from '@/lib/hashid';
 import { useNotFound } from '@/Composables/useNotFound';
@@ -299,25 +358,27 @@ import AppTabs        from '@/Components/App/AppTabs.vue';
 import AppDropdown    from '@/Components/App/AppDropdown.vue';
 import AppModal       from '@/Components/App/AppModal.vue';
 import AppEmptyState  from '@/Components/App/AppEmptyState.vue';
+import AppSelectSearch from '@/Components/App/AppSelectSearch.vue';
 import ContingentLogo from '@/Components/App/ContingentLogo.vue';
 
 interface Props { id: string | number }
 const props = defineProps<Props>();
 const { notFound } = useNotFound();
 const toast = useToast();
-const { user, isSuperAdmin } = useAuth();
+const { user, isSuperAdmin, hasRole } = useAuth();
 const realId = decodeId(props.id);
 
 // ── State penilaian (scoring) ────────────────────────────────────────────────
 const scoreForm   = reactive({ home: 0, away: 0 });
 const setsForm    = ref<{ home: number; away: number }[]>([]);
 const rankValues  = reactive<Record<number, string>>({});
+const penaltyForm = reactive({ home: 0, away: 0 });
 const savingScore = ref(false);
 const finishing   = ref(false);
 const showFinish  = ref(false);
 
 const activeTab   = ref('lineup');
-const tabs = [{ key: 'lineup', label: 'Susunan Tim' }, { key: 'juri', label: 'Juri' }, { key: 'riwayat', label: 'Riwayat' }, { key: 'info', label: 'Info' }];
+const tabs = [{ value: 'lineup', label: 'Susunan Tim' }, { value: 'juri', label: 'Juri' }, { value: 'riwayat', label: 'Riwayat' }, { value: 'info', label: 'Info' }];
 const match       = ref<any>(null);
 const result      = ref<any>(null);
 const judges      = ref<any[]>([]);
@@ -357,8 +418,12 @@ const awayC = computed(() => awayP.value?.contingent ?? null);
 const homeScore = computed(() => result.value?.result_data?.score?.home ?? result.value?.result_data?.home ?? 0);
 const awayScore = computed(() => result.value?.result_data?.score?.away ?? result.value?.result_data?.away ?? 0);
 const sets = computed<any[]>(() => result.value?.result_data?.sets ?? []);
+const penalty = computed<{ home: number; away: number } | null>(() => result.value?.result_data?.penalty ?? null);
 const versusWinner = computed(() => {
     if (!hasResult.value) return null;
+    // Fase gugur: winner_side dari server (mis. hasil adu penalti) jadi acuan.
+    const ws = result.value?.result_data?.winner_side;
+    if (ws === 'home' || ws === 'away') return ws;
     if (homeScore.value === awayScore.value) return null;
     return homeScore.value > awayScore.value ? 'home' : 'away';
 });
@@ -424,6 +489,13 @@ const historyEntries = computed(() => {
 
 // ── Penilaian: hak akses & mode ──────────────────────────────────────────────
 const isBo3 = computed(() => kind.value === 'versus' && !!match.value?.sport_category?.uses_bo3);
+const isKnockout = computed(() => match.value?.stage === 'knockout');
+// Adu penalti hanya untuk versus skor (bukan BO3) di fase gugur saat skor imbang.
+const needPenalty = computed(() =>
+    kind.value === 'versus' && !isBo3.value && isKnockout.value
+    && scoringType.value === 'score'
+    && Number(scoreForm.home) === Number(scoreForm.away)
+);
 const canScore = computed(() =>
     isSuperAdmin.value || judges.value.some(j => (j.user?.id ?? j.user_id) === user.value?.id)
 );
@@ -527,6 +599,8 @@ function syncScoreForm() {
         } else {
             scoreForm.home = Number(rd?.score?.home ?? rd?.home ?? 0);
             scoreForm.away = Number(rd?.score?.away ?? rd?.away ?? 0);
+            penaltyForm.home = Number(rd?.penalty?.home ?? 0);
+            penaltyForm.away = Number(rd?.penalty?.away ?? 0);
         }
     } else {
         const ranks = rd?.ranks;
@@ -553,7 +627,12 @@ function buildResultData(): any {
         }
         const home = Number(scoreForm.home) || 0;
         const away = Number(scoreForm.away) || 0;
-        return { home, away, score: { home, away } };
+        const data: any = { home, away, score: { home, away } };
+        // Fase gugur & skor imbang → sertakan adu penalti (winner_side diisi server).
+        if (isKnockout.value && scoringType.value === 'score' && home === away) {
+            data.penalty = { home: Number(penaltyForm.home) || 0, away: Number(penaltyForm.away) || 0 };
+        }
+        return data;
     }
     // ranking (time/distance/rank)
     const st = scoringType.value;
@@ -572,6 +651,11 @@ function buildResultData(): any {
 }
 
 async function saveScore(): Promise<boolean> {
+    // Fase gugur tak boleh berakhir imbang — adu penalti wajib ada pemenang.
+    if (needPenalty.value && Number(penaltyForm.home) === Number(penaltyForm.away)) {
+        toast.error('Skor imbang di fase gugur — isi adu penalti dengan pemenang (skor berbeda).');
+        return false;
+    }
     savingScore.value = true;
     try {
         const result_data = buildResultData();
@@ -614,6 +698,79 @@ async function applyStatus() {
         toast.error(e?.response?.data?.message ?? 'Gagal mengubah status');
     } finally { changing.value = false; }
 }
+// ── Penugasan juri (super admin / panitia besar) ─────────────────────────────
+const showAddJudge     = ref(false);
+const judgePick        = ref('');
+const judgeRole        = ref('');
+const judgeOptions     = ref<{ value: string; label: string }[]>([]);
+const loadingJudgeOpts = ref(false);
+const savingJudge      = ref(false);
+const ROLE_OPTIONS = [
+    { value: 'Ketua Juri', label: 'Ketua Juri' },
+    { value: 'Juri 1',     label: 'Juri 1' },
+    { value: 'Juri 2',     label: 'Juri 2' },
+    { value: 'Wasit',      label: 'Wasit' },
+    { value: 'Hakim Garis', label: 'Hakim Garis' },
+];
+const canManageJudges = computed(() => isSuperAdmin.value || hasRole('panitia_besar'));
+const matchEditable   = computed(() => ['scheduled', 'postponed'].includes(match.value?.status));
+
+async function openAddJudge() {
+    judgePick.value = '';
+    judgeRole.value = 'Ketua Juri';
+    showAddJudge.value = true;
+    await fetchJudgeOptions();
+}
+
+/** Hanya juri yang punya keahlian (judge_sport_scope) cabor laga ini, belum ditugaskan. */
+async function fetchJudgeOptions() {
+    const sportId = match.value?.sport_category?.sport_id ?? match.value?.sport_category?.sport?.id;
+    if (!sportId) { judgeOptions.value = []; return; }
+    loadingJudgeOpts.value = true;
+    try {
+        const res = await api.get('/api/v1/judge-scopes', { params: { sport_id: sportId, per_page: 200 } });
+        const raw  = res.data?.data;
+        const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+        const assigned = new Set(judges.value.map((j: any) => j.user?.id ?? j.user_id));
+        judgeOptions.value = list
+            .filter(Boolean)
+            .filter((s: any) => s.user && !assigned.has(s.user.id))
+            .map((s: any) => ({ value: String(s.user.id), label: s.user.name + (s.user.email ? ' · ' + s.user.email : '') }));
+    } catch { judgeOptions.value = []; }
+    finally { loadingJudgeOpts.value = false; }
+}
+
+async function addJudge() {
+    if (!judgePick.value) return;
+    savingJudge.value = true;
+    try {
+        await api.post(`/api/v1/matches/${realId}/judges`, { user_id: Number(judgePick.value), role: judgeRole.value || null });
+        toast.success('Juri ditugaskan');
+        showAddJudge.value = false;
+        await fetchJudges();
+    } catch (e: any) {
+        const st = e?.response?.status;
+        if (st === 409)      toast.error(e.response.data?.message ?? 'Juri bentrok jadwal di laga lain.');
+        else if (st === 422) toast.error(e.response.data?.message ?? 'Juri tidak memenuhi syarat (keahlian/status).');
+        else                 toast.error(e?.response?.data?.message ?? 'Gagal menugaskan juri');
+    } finally { savingJudge.value = false; }
+}
+
+async function removeJudge(j: any) {
+    try {
+        await api.delete(`/api/v1/matches/${realId}/judges/${j.id}`);
+        toast.success('Juri dilepas');
+        await fetchJudges();
+    } catch (e: any) {
+        toast.error(e?.response?.data?.message ?? 'Gagal melepas juri');
+    }
+}
+
+async function fetchJudges() {
+    const jd = await safeGet(`/api/v1/matches/${realId}/judges`);
+    judges.value = Array.isArray(jd) ? jd : [];
+}
+
 onMounted(fetchMatch);
 
 // ── Formatters ───────────────────────────────────────────────────────────────
@@ -653,10 +810,20 @@ function roleLabel(r?: string) {
 function roleBadge(r?: string): 'success' | 'info' | 'warning' | 'primary' | 'default' {
     return ({ athlete: 'success', coach: 'info', official: 'warning', manager: 'primary' } as Record<string, 'success' | 'info' | 'warning' | 'primary'>)[r ?? ''] ?? 'default';
 }
+// Timestamp nyata (riwayat: changed_at/created_at) → konversi ke zona lokal benar.
 function formatTime(dt: string) {
     if (!dt) return '—';
     const d = new Date(dt);
     return isNaN(d.getTime()) ? dt : d.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+// scheduled_at = WALL-CLOCK (backend UTC tanpa makna zona). Tampilkan apa adanya,
+// JANGAN konversi (new Date() langsung menggeser +7 → 15:13 jadi 22:13).
+function formatSchedule(dt: string) {
+    if (!dt) return '—';
+    const m = String(dt).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    if (!m) return dt;
+    const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+    return d.toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 function statusColor(s: string) {
     const m: Record<string, 'info' | 'success' | 'default' | 'warning'> = { scheduled: 'info', ongoing: 'success', finished: 'default', postponed: 'warning', cancelled: 'default' };
@@ -747,6 +914,18 @@ function medalColor(m: string) {
 .rank-hint    { font-size: 12px; color: var(--color-text-subtle); margin-top: 6px; }
 .scoring-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--color-border); }
 
+/* Adu penalti (editor) */
+.penalty-box   { margin-top: 16px; padding: 14px; border: 1.5px dashed var(--color-warning); border-radius: 12px; background: color-mix(in srgb, var(--color-warning) 7%, transparent); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.penalty-title { font-size: 12.5px; font-weight: 700; color: var(--color-warning); }
+.penalty-inputs{ display: flex; align-items: center; gap: 14px; }
+.penalty-sep   { font-size: 20px; font-weight: 800; color: var(--color-text-subtle); }
+.penalty-hint  { font-size: 11.5px; color: var(--color-text-muted); margin: 0; text-align: center; }
+/* Adu penalti (read-only) */
+.pen-line      { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: var(--color-text-muted); }
+.pen-tag       { font-family: var(--font-sans); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 12%, transparent); padding: 2px 8px; border-radius: 6px; }
+.pen-line .win { color: var(--color-accent); }
+.pen-dash      { color: var(--color-text-subtle); }
+
 /* Medali */
 .section-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; color: var(--color-text-primary); }
 .medal-list    { display: flex; flex-direction: column; gap: 6px; }
@@ -783,6 +962,13 @@ function medalColor(m: string) {
 .judge-body    { flex: 1; display: flex; flex-direction: column; }
 .judge-name    { font-weight: 600; font-size: 13.5px; }
 .judge-email   { font-size: 12px; color: var(--color-text-muted); }
+.juri-toolbar  { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.juri-toolbar__hint { font-size: 12px; color: var(--color-text-muted); }
+.juri-toolbar__lock { font-size: 11.5px; color: var(--color-text-subtle); font-style: italic; }
+.juri-del      { border: none; background: transparent; color: var(--color-text-subtle); cursor: pointer; padding: 6px; border-radius: 6px; display: flex; transition: background .12s, color .12s; }
+.juri-del:hover { background: color-mix(in srgb, var(--color-danger) 10%, transparent); color: var(--color-danger); }
+.add-judge     { display: flex; flex-direction: column; gap: 14px; }
+.add-judge__empty { font-size: 12px; color: var(--color-warning); margin: -6px 0 0; line-height: 1.45; }
 
 /* Riwayat (timeline) */
 .history     { display: flex; flex-direction: column; padding-top: 4px; }

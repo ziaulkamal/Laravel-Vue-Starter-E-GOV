@@ -89,7 +89,10 @@
                                 <td class="dt-td">{{ sc.scoring_type }}</td>
                                 <td class="dt-td"><AppBadge :color="sc.is_active ? 'success' : 'default'" size="sm">{{ sc.is_active ? 'Aktif' : 'Nonaktif' }}</AppBadge></td>
                                 <td class="dt-td dt-td--actions">
-                                    <AppButton size="xs" variant="ghost" @click="$inertia.visit(`/sport-categories/${encodeId(sc.id)}/edit`)"><Pencil :size="13" /></AppButton>
+                                    <div class="row-actions">
+                                        <AppButton size="xs" variant="ghost" title="Lihat (klasemen/bagan)" @click="$inertia.visit(`/sport-categories/${encodeId(sc.id)}`)"><Eye :size="13" /></AppButton>
+                                        <AppButton size="xs" variant="ghost" title="Edit" @click="$inertia.visit(`/sport-categories/${encodeId(sc.id)}/edit`)"><Pencil :size="13" /></AppButton>
+                                    </div>
                                 </td>
                             </tr>
                             </template>
@@ -129,7 +132,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { router }     from '@inertiajs/vue3';
-import { Pencil, Layers, Trash2 } from '@lucide/vue';
+import { Pencil, Layers, Trash2, Eye } from '@lucide/vue';
 import api            from '@/lib/axios';
 import { encodeId, decodeId } from '@/lib/hashid';
 import { useNotFound } from '@/Composables/useNotFound';
@@ -283,7 +286,8 @@ function typeLabel(t: string)   { return ({ individual: 'Individual', pair: 'Pas
 .subcabor-empty__text strong { color: var(--color-text-primary); text-transform: capitalize; }
 .dt-table    { width: 100%; border-collapse: collapse; }
 .dt-th       { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-subtle); border-bottom: 1.5px solid var(--color-border); }
-.dt-th--actions { width: 50px; }
+.dt-th--actions { width: 84px; }
+.row-actions { display: flex; gap: 4px; justify-content: flex-end; }
 .dt-row      { border-bottom: 1px solid var(--color-border); }
 .dt-row:last-child { border-bottom: none; }
 .dt-td       { padding: 11px 14px; font-size: 13px; color: var(--color-text-primary); vertical-align: middle; }
