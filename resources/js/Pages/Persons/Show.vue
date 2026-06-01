@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Detail Data Pribadi">
         <div class="page-wrap">
             <AppBreadcrumb :items="[
                 { label: 'Data Pribadi', href: '/persons' },
@@ -152,7 +152,7 @@
         </div>
 
         <!-- Delete Confirm Modal -->
-        <AppModal v-model:open="confirmDelete" title="Hapus Data Pribadi" size="sm">
+        <AppModal v-model="confirmDelete" title="Hapus Data Pribadi" size="sm">
             <p style="font-size:13.5px; color:var(--color-text-muted)">
                 Apakah Anda yakin ingin menghapus data <strong>{{ person?.nama_lengkap }}</strong>?
                 Tindakan ini tidak dapat dibatalkan.

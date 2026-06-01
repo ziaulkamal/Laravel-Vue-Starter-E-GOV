@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Jadwal Pertandingan">
         <div class="page-wrap">
             <div class="page-header">
                 <div>

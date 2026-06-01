@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Data Pribadi">
         <div class="page-wrap">
             <div class="page-header">
                 <div>

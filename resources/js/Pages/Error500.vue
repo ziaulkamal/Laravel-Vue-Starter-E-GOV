@@ -1,4 +1,5 @@
 <template>
+    <Head title="500 — Terjadi Kesalahan" />
     <div class="err">
         <div class="err__bg" aria-hidden="true">
             <div class="err__blob err__blob--1" />
@@ -27,10 +28,10 @@
                     <RefreshCwIcon :size="15" />
                     Try Again
                 </button>
-                <a href="/" class="err__btn err__btn--ghost">
+                <Link href="/dashboard" class="err__btn err__btn--ghost">
                     <HomeIcon :size="15" />
                     Go to Dashboard
-                </a>
+                </Link>
             </div>
             <p class="err__id">Error reference: <code>ERR_500_{{ errorId }}</code></p>
         </div>
@@ -38,6 +39,7 @@
 </template>
 
 <script setup lang="ts">
+import { Head, Link } from '@inertiajs/vue3';
 import { AlertTriangleIcon, RefreshCwIcon, HomeIcon } from '@lucide/vue';
 
 const errorId = Math.random().toString(36).slice(2, 10).toUpperCase();

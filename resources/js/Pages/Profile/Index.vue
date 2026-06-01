@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Profil Saya">
         <div class="page-wrap">
             <div class="page-header">
                 <h1 class="page-title">Profil Saya</h1>

@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Kontingen">
         <div class="page-wrap">
             <div class="page-header">
                 <div>

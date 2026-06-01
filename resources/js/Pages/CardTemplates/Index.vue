@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Template Kartu">
         <div class="page-wrap">
             <div class="page-header">
                 <div>

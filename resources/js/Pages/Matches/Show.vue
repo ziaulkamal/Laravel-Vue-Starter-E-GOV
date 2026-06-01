@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout :title="match?.match_code ?? 'Detail Pertandingan'">
         <div class="page-wrap">
             <AppBreadcrumb :items="[{ label: 'Jadwal', href: '/matches' }, { label: match?.match_code ?? 'Detail' }]" />
 
@@ -166,26 +166,66 @@
             </AppCard>
 
             <AppTabs v-if="match" v-model="activeTab" variant="underline" :tabs="tabs">
-                <!-- Atlet / lineup -->
+                <!-- Susunan Tim: ofisial + atlet per kontingen -->
                 <template #lineup>
                     <div v-if="loadingExtra" class="muted">Memuat…</div>
-                    <div v-else-if="lineupGroups.length" class="lineup-groups">
-                        <div v-for="g in lineupGroups" :key="g.contingent_id" class="lineup-group">
+                    <div v-else-if="!squadEmpty" class="lineup-groups">
+                        <div v-for="g in squadGroups" :key="g.contingent_id" class="lineup-group">
                             <div class="lineup-head">
                                 <ContingentLogo :wilayah-kode="g.wilayah_kode" :short-name="g.short_name" :size="32" :radius="8" />
                                 <span>{{ cap(g.name) ?? '—' }}</span>
+                                <AppBadge v-if="g.side" :color="g.side === 'home' ? 'info' : 'default'" size="sm">{{ g.side === 'home' ? 'Home' : 'Away' }}</AppBadge>
                                 <span class="lineup-count">{{ g.athletes.length }} atlet</span>
                             </div>
-                            <div class="lineup-athletes">
+
+                            <!-- Ofisial -->
+                            <div v-if="g.officials.length" class="official-block">
+                                <div class="block-label">Ofisial</div>
+                                <div v-for="o in g.officials" :key="o.id" class="official-row">
+                                    <span class="off-avatar">{{ initials(o.person?.nama_lengkap) }}</span>
+                                    <span class="official-name">{{ cap(o.person?.nama_lengkap) ?? '—' }}</span>
+                                    <AppBadge :color="roleBadge(o.role)" size="sm">{{ roleLabel(o.role) }}</AppBadge>
+                                </div>
+                            </div>
+
+                            <!-- Atlet -->
+                            <div v-if="g.athletes.length" class="lineup-athletes">
+                                <div class="block-label">Atlet</div>
                                 <div v-for="a in g.athletes" :key="a.id" class="athlete-row">
                                     <span class="jersey">{{ a.jersey_number ?? '–' }}</span>
                                     <span class="athlete-name">{{ cap(a.name) ?? '—' }}</span>
                                     <span v-if="a.gender" class="athlete-gender">{{ a.gender === 'male' ? 'Putra' : a.gender === 'female' ? 'Putri' : a.gender }}</span>
                                 </div>
                             </div>
+
+                            <div v-if="!g.officials.length && !g.athletes.length" class="empty-mini">Belum ada ofisial / atlet</div>
                         </div>
                     </div>
-                    <AppEmptyState v-else title="Belum ada lineup atlet" description="Atlet yang bertanding belum didaftarkan." size="sm" />
+                    <AppEmptyState v-else title="Belum ada susunan tim" description="Ofisial & atlet belum didaftarkan untuk pertandingan ini." size="sm" />
+                </template>
+
+                <!-- Riwayat hasil (timeline) -->
+                <template #riwayat>
+                    <div v-if="loadingExtra" class="muted">Memuat…</div>
+                    <div v-else-if="historyEntries.length" class="history">
+                        <div v-for="(h, i) in historyEntries" :key="i" class="hist-row">
+                            <span class="hist-dot" :class="h.kind" />
+                            <div class="hist-body">
+                                <div class="hist-top">
+                                    <span class="hist-score">
+                                        <template v-if="h.kind === 'update'"><span class="hist-from">{{ h.from }}</span> → <b>{{ h.to }}</b></template>
+                                        <template v-else><b>{{ h.to }}</b></template>
+                                    </span>
+                                    <span class="hist-time">{{ formatTime(h.time) }}</span>
+                                </div>
+                                <div class="hist-meta">
+                                    <span class="hist-tag">{{ h.kind === 'created' ? '✍️ Hasil pertama diinput' : (h.reason || 'Pembaruan skor') }}</span>
+                                    <span v-if="h.by" class="hist-by"> · oleh {{ h.by }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <AppEmptyState v-else title="Belum ada riwayat hasil" description="Riwayat muncul setelah skor diinput atau diperbarui." size="sm" />
                 </template>
 
                 <!-- Juri -->
@@ -277,11 +317,12 @@ const finishing   = ref(false);
 const showFinish  = ref(false);
 
 const activeTab   = ref('lineup');
-const tabs = [{ key: 'lineup', label: 'Atlet' }, { key: 'juri', label: 'Juri' }, { key: 'info', label: 'Info' }];
+const tabs = [{ key: 'lineup', label: 'Susunan Tim' }, { key: 'juri', label: 'Juri' }, { key: 'riwayat', label: 'Riwayat' }, { key: 'info', label: 'Info' }];
 const match       = ref<any>(null);
 const result      = ref<any>(null);
 const judges      = ref<any[]>([]);
 const lineups     = ref<any[]>([]);
+const officials   = ref<Record<number, any[]>>({});
 const medals      = ref<any[]>([]);
 const loadingExtra = ref(true);
 const showConfirm = ref(false);
@@ -329,27 +370,57 @@ const rankingRows = computed<any[]>(() => {
     return [];
 });
 
-// Lineup digrup per kontingen
-const lineupGroups = computed(() => {
-    const groups: Record<number, any> = {};
-    for (const l of lineups.value) {
-        const c = l.match_participant?.contingent;
-        const cid = c?.id ?? l.match_participant?.contingent_id;
-        if (cid == null) continue;
-        if (!groups[cid]) groups[cid] = { contingent_id: cid, name: c?.name, short_name: c?.short_name, wilayah_kode: c?.wilayah_kode, athletes: [] };
-        groups[cid].athletes.push({
-            id: l.id,
-            name: l.participant?.person?.nama_lengkap,
-            gender: l.participant?.person?.jenis_kelamin,
-            jersey_number: l.jersey_number,
-        });
-    }
-    for (const g of Object.values(groups)) g.athletes.sort((a: any, b: any) => (a.jersey_number ?? 99) - (b.jersey_number ?? 99));
-    return Object.values(groups);
+// Susunan tim per kontingen: ofisial (pelatih/official/manajer) + atlet (lineup).
+// Basis = match.participants agar kontingen tetap tampil walau belum ada lineup.
+const ROLE_ORDER: Record<string, number> = { manager: 0, coach: 1, official: 2 };
+const squadGroups = computed(() => {
+    const parts = match.value?.participants ?? [];
+    return parts.map((p: any) => {
+        const c = p.contingent;
+        const cid = p.contingent_id ?? c?.id;
+        const athletes = lineups.value
+            .filter((l: any) => (l.match_participant?.contingent?.id ?? l.match_participant?.contingent_id) === cid)
+            .map((l: any) => ({
+                id: l.id,
+                name: l.participant?.person?.nama_lengkap,
+                gender: l.participant?.person?.jenis_kelamin,
+                jersey_number: l.jersey_number,
+            }))
+            .sort((a: any, b: any) => (a.jersey_number ?? 99) - (b.jersey_number ?? 99));
+        const offs = [...(officials.value[cid] ?? [])]
+            .sort((a, b) => (ROLE_ORDER[a.role] ?? 9) - (ROLE_ORDER[b.role] ?? 9));
+        return { contingent_id: cid, name: c?.name, short_name: c?.short_name, wilayah_kode: c?.wilayah_kode, side: p.side, athletes, officials: offs };
+    });
 });
+const squadEmpty = computed(() => squadGroups.value.every((g: any) => !g.athletes.length && !g.officials.length));
 
 const medalOrder: Record<string, number> = { gold: 0, silver: 1, bronze: 2 };
 const medalsSorted = computed(() => [...medals.value].sort((a, b) => (medalOrder[a.medal] ?? 9) - (medalOrder[b.medal] ?? 9)));
+
+// ── Riwayat hasil (timeline) — dari result.logs + saat hasil dibuat ──────────
+const historyEntries = computed(() => {
+    const r = result.value;
+    if (!r) return [];
+    const logs = Array.isArray(r.logs) ? [...r.logs] : [];
+    logs.sort((a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime());
+    const entries: any[] = logs.map(l => ({
+        kind:   'update',
+        time:   l.changed_at,
+        by:     l.changed_by?.name ?? null,
+        reason: l.reason,
+        from:   scoreSummary(l.old_data),
+        to:     scoreSummary(l.new_data),
+    }));
+    // Baris paling bawah = saat hasil pertama diinput (nilai awal = old_data log terlama, atau current bila belum pernah diubah).
+    const firstData = logs.length ? logs[logs.length - 1].old_data : r.result_data;
+    entries.push({
+        kind: 'created',
+        time: r.created_at,
+        by:   r.inputted_by?.name ?? null,
+        to:   scoreSummary(firstData),
+    });
+    return entries;
+});
 
 // ── Penilaian: hak akses & mode ──────────────────────────────────────────────
 const isBo3 = computed(() => kind.value === 'versus' && !!match.value?.sport_category?.uses_bo3);
@@ -420,8 +491,29 @@ async function fetchExtras() {
     judges.value  = Array.isArray(jd) ? jd : [];
     lineups.value = Array.isArray(ln) ? ln : [];
     medals.value  = Array.isArray(md) ? md : [];
+    await fetchOfficials();
     loadingExtra.value = false;
     syncScoreForm();
+}
+
+/** Ambil ofisial (pelatih/official/manajer) tiap kontingen utk cabor match ini.
+ *  `sport_id` menyaring atlet keluar otomatis (atlet sport_id null). */
+async function fetchOfficials() {
+    const sportId = match.value?.sport_category?.sport_id ?? match.value?.sport_category?.sport?.id;
+    const parts   = match.value?.participants ?? [];
+    if (!sportId || !parts.length) { officials.value = {}; return; }
+    const map: Record<number, any[]> = {};
+    await Promise.all(parts.map(async (p: any) => {
+        const cid = p.contingent_id ?? p.contingent?.id;
+        if (cid == null) return;
+        try {
+            const res = await api.get('/api/v1/participants', { params: { contingent_id: cid, sport_id: sportId, per_page: 100 } });
+            const raw  = res.data?.data;
+            const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+            map[cid] = list.filter(Boolean).filter((x: any) => x.role && x.role !== 'athlete');
+        } catch { map[cid] = []; }
+    }));
+    officials.value = map;
 }
 
 /** Isi form penilaian dari hasil yang sudah ada (atau default kosong). */
@@ -534,6 +626,33 @@ function formatRankValue(v: any) {
     if (v == null || v === '') return '—';
     return String(v);
 }
+/** Ringkas result_data jadi string pendek utk timeline riwayat. */
+function scoreSummary(data: any): string {
+    if (!data) return '—';
+    if (kind.value === 'versus') {
+        if (Array.isArray(data.sets) && data.sets.length) {
+            const hs = data.sets.filter((s: any) => (+s.home || 0) > (+s.away || 0)).length;
+            const as = data.sets.filter((s: any) => (+s.away || 0) > (+s.home || 0)).length;
+            return `${hs}–${as} set`;
+        }
+        const h = data.score?.home ?? data.home ?? 0;
+        const a = data.score?.away ?? data.away ?? 0;
+        return `${h} : ${a}`;
+    }
+    const ranks = data.ranks;
+    if (Array.isArray(ranks) && ranks.length) {
+        const top  = ranks.find((r: any) => r.rank === 1) ?? ranks[0];
+        const name = contingentMap.value[top.contingent_id]?.short_name ?? contingentMap.value[top.contingent_id]?.name ?? `#${top.contingent_id}`;
+        return `🥇 ${cap(name)} · ${ranks.length} peringkat`;
+    }
+    return '—';
+}
+function roleLabel(r?: string) {
+    return ({ athlete: 'Atlet', coach: 'Pelatih', official: 'Official', manager: 'Manajer' } as Record<string,string>)[r ?? ''] ?? (r ?? '—');
+}
+function roleBadge(r?: string): 'success' | 'info' | 'warning' | 'primary' | 'default' {
+    return ({ athlete: 'success', coach: 'info', official: 'warning', manager: 'primary' } as Record<string, 'success' | 'info' | 'warning' | 'primary'>)[r ?? ''] ?? 'default';
+}
 function formatTime(dt: string) {
     if (!dt) return '—';
     const d = new Date(dt);
@@ -644,7 +763,14 @@ function medalColor(m: string) {
 .lineup-head   { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--color-surface-2, var(--color-accent-subtle)); font-weight: 600; font-size: 13.5px; text-transform: capitalize; }
 .lineup-count  { margin-left: auto; font-size: 11px; font-weight: 500; color: var(--color-text-muted); text-transform: none; }
 .lineup-athletes { display: flex; flex-direction: column; }
+.block-label   { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-subtle); padding: 8px 12px 4px; border-top: 1px solid var(--color-border); }
+.official-block { display: flex; flex-direction: column; }
+.official-row  { display: flex; align-items: center; gap: 10px; padding: 7px 12px; }
+.off-avatar    { width: 26px; height: 26px; border-radius: 50%; background: var(--color-accent-subtle); color: var(--color-accent); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.official-name { flex: 1; font-size: 13px; font-weight: 500; text-transform: capitalize; }
+.empty-mini    { padding: 12px; font-size: 12.5px; color: var(--color-text-subtle); border-top: 1px solid var(--color-border); }
 .athlete-row   { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--color-border); }
+.block-label + .athlete-row { border-top: none; }
 .jersey        { width: 26px; height: 26px; border-radius: 6px; background: var(--color-accent-subtle); color: var(--color-accent); font-size: 12px; font-weight: 700; font-family: var(--font-mono); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .athlete-name  { flex: 1; font-size: 13px; font-weight: 500; text-transform: capitalize; }
 .athlete-gender { font-size: 11px; color: var(--color-text-muted); }
@@ -657,6 +783,22 @@ function medalColor(m: string) {
 .judge-body    { flex: 1; display: flex; flex-direction: column; }
 .judge-name    { font-weight: 600; font-size: 13.5px; }
 .judge-email   { font-size: 12px; color: var(--color-text-muted); }
+
+/* Riwayat (timeline) */
+.history     { display: flex; flex-direction: column; padding-top: 4px; }
+.hist-row    { display: grid; grid-template-columns: 16px 1fr; gap: 12px; padding: 4px 0; position: relative; }
+.hist-row::before { content: ''; position: absolute; left: 7px; top: 16px; bottom: -4px; width: 2px; background: var(--color-border); }
+.hist-row:last-child::before { display: none; }
+.hist-dot    { width: 12px; height: 12px; border-radius: 50%; margin-top: 5px; background: var(--color-accent); border: 2px solid var(--color-surface, #fff); box-shadow: 0 0 0 1px var(--color-border); z-index: 1; }
+.hist-dot.created { background: var(--color-text-subtle); }
+.hist-body   { padding-bottom: 14px; }
+.hist-top    { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.hist-score  { font-size: 14px; color: var(--color-text-muted); }
+.hist-score b { font-family: var(--font-mono); font-weight: 800; color: var(--color-text-primary); }
+.hist-from   { font-family: var(--font-mono); color: var(--color-text-subtle); }
+.hist-time   { font-size: 12px; color: var(--color-text-subtle); white-space: nowrap; }
+.hist-meta   { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+.hist-by     { color: var(--color-text-subtle); }
 
 .info-grid   { display: flex; flex-direction: column; gap: 14px; padding-top: 4px; }
 .info-item   { display: flex; align-items: flex-start; gap: 12px; }

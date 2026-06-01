@@ -2,7 +2,7 @@
     <!-- ── SINGLE item ── -->
     <template v-if="!hasChildren">
         <component
-            :is="item.href ? 'a' : 'button'"
+            :is="item.href ? Link : 'button'"
             :href="item.href ?? undefined"
             class="nav-item"
             :class="[
@@ -136,7 +136,7 @@
                     <p class="nav-flyout__title">{{ item.label }}</p>
                     <template v-for="child in item.children" :key="child.label">
                         <!-- Direct link -->
-                        <a
+                        <Link
                             v-if="child.href"
                             :href="child.href"
                             class="nav-flyout__item"
@@ -144,7 +144,7 @@
                         >
                             <component v-if="child.icon" :is="child.icon" :size="14" stroke-width="1.8" />
                             <span>{{ child.label }}</span>
-                        </a>
+                        </Link>
                         <!-- Nested group (accordion) -->
                         <div v-else>
                             <button
@@ -162,7 +162,7 @@
                             </button>
                             <Transition name="flyout-accordion">
                                 <div v-if="flyoutOpenGroups.includes(child.label)" class="overflow-hidden">
-                                    <a
+                                    <Link
                                         v-for="gc in child.children"
                                         :key="gc.label"
                                         :href="gc.href ?? '#'"
@@ -170,7 +170,7 @@
                                         :class="{ 'nav-flyout__item--active': isChildActive(gc.href) }"
                                     >
                                         <span>{{ gc.label }}</span>
-                                    </a>
+                                    </Link>
                                 </div>
                             </Transition>
                         </div>
@@ -184,6 +184,7 @@
 <script setup lang="ts">
 import { computed, ref, onUnmounted } from 'vue';
 import { ChevronRight } from '@lucide/vue';
+import { Link } from '@inertiajs/vue3';
 import { useTheme } from '@/Composables/useTheme';
 
 interface NavItem {

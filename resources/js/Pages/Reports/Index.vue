@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Laporan & Ekspor">
         <div class="page-wrap">
             <div class="page-header">
                 <div>

@@ -117,15 +117,15 @@
                             <div class="topbar__menu-divider" />
 
                             <div class="topbar__menu-items">
-                                <a href="/settings" class="topbar__menu-item">
+                                <Link href="/settings" class="topbar__menu-item">
                                     <UserIcon :size="14" /> Profile
-                                </a>
-                                <a href="/settings" class="topbar__menu-item">
+                                </Link>
+                                <Link href="/settings" class="topbar__menu-item">
                                     <Settings :size="14" /> Settings
-                                </a>
-                                <a href="/blocks" class="topbar__menu-item">
+                                </Link>
+                                <Link href="/blocks" class="topbar__menu-item">
                                     <LayoutGrid :size="14" /> Components
-                                </a>
+                                </Link>
                             </div>
 
                             <div class="topbar__menu-divider" />
@@ -145,6 +145,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
+import { Link } from '@inertiajs/vue3';
 import {
     PanelLeft, Menu, Sun, Moon, Search, X,
     Bell, ChevronDown, UserIcon, Settings, LogOut, LayoutGrid,

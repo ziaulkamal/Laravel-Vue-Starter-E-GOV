@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Dashboard">
         <div class="page-wrap">
             <!-- Page Header -->
             <div class="page-header">
@@ -24,7 +24,7 @@
                     <template #header>
                         <div class="card-header-row">
                             <span class="card-header-title">Pertandingan Hari Ini</span>
-                            <a href="/matches" class="card-header-link">Lihat semua</a>
+                            <Link href="/matches" class="card-header-link">Lihat semua</Link>
                         </div>
                     </template>
                     <div class="match-list">
@@ -47,7 +47,7 @@
                     <template #header>
                         <div class="card-header-row">
                             <span class="card-header-title">Dokumen Pending</span>
-                            <a href="/documents/review" class="card-header-link">Verifikasi</a>
+                            <Link href="/documents/review" class="card-header-link">Verifikasi</Link>
                         </div>
                     </template>
                     <div class="doc-list">
@@ -67,7 +67,7 @@
                 <template #header>
                     <div class="card-header-row">
                         <span class="card-header-title">Klasemen Sementara — Top 5</span>
-                        <a href="/leaderboard" class="card-header-link">Lihat semua</a>
+                        <Link href="/leaderboard" class="card-header-link">Lihat semua</Link>
                     </div>
                 </template>
                 <table class="lb-table">
@@ -99,6 +99,7 @@
 </template>
 
 <script setup lang="ts">
+import { Link } from '@inertiajs/vue3';
 import SimporaLayout from '@/Layouts/SimporaLayout.vue';
 import KpiCard       from '@/Components/Dashboard/KpiCard.vue';
 import AppCard       from '@/Components/App/AppCard.vue';

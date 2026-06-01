@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout :title="isEdit ? 'Edit Template Kartu' : 'Buat Template Kartu'">
         <div class="page-wrap">
             <AppBreadcrumb :items="[{ label: 'Template Kartu', href: '/card-templates' }, { label: isEdit ? 'Edit Template' : 'Buat Template' }]" />
             <h1 class="page-title">{{ isEdit ? 'Edit Template Kartu' : 'Buat Template Kartu' }}</h1>

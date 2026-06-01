@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout :title="lodging?.name ?? 'Detail Penginapan'">
         <div class="page-wrap">
             <AppBreadcrumb :items="[{ label: 'Penginapan', href: '/lodgings' }, { label: lodging?.name ?? 'Detail' }]" />
 
@@ -56,7 +56,7 @@
             </AppTabs>
         </div>
 
-        <AppModal v-model:open="showAddModal" title="Tambah Alokasi Kamar" size="sm">
+        <AppModal v-model="showAddModal" title="Tambah Alokasi Kamar" size="sm">
             <div class="modal-form">
                 <AppSelect v-model="addForm.contingent_id" label="Kontingen"  :options="kontingenOptions" placeholder="Pilih kontingen..." />
                 <AppInput  v-model="addForm.room_info"     label="Info Kamar" placeholder="Contoh: Lantai 2, Kamar 201-210" />

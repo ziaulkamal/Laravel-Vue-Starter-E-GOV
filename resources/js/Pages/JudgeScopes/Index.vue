@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Keahlian Juri">
         <div class="page-wrap">
             <div class="page-header">
                 <div>

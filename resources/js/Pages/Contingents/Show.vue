@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout :title="contingent?.name ?? 'Detail Kontingen'">
         <div class="page-wrap">
             <AppBreadcrumb :items="[{ label: 'Kontingen', href: '/contingents' }, { label: contingent?.name ?? 'Detail' }]" />
 

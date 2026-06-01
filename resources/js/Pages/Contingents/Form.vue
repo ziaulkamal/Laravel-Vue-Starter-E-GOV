@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout :title="isEdit ? 'Edit Kontingen' : 'Tambah Kontingen'">
         <div class="page-wrap">
             <AppBreadcrumb :items="[{ label: 'Kontingen', href: '/contingents' }, { label: isEdit ? 'Edit Kontingen' : 'Tambah Kontingen' }]" />
             <h1 class="page-title">{{ isEdit ? 'Edit Kontingen' : 'Tambah Kontingen' }}</h1>

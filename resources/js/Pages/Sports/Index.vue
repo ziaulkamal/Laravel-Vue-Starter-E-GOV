@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Cabang Olahraga">
         <div class="page-wrap">
             <div class="page-header">
                 <div>

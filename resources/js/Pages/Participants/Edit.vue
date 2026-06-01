@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Edit Peserta">
         <div class="page-wrap">
             <AppBreadcrumb :items="[
                 { label: 'Peserta', href: '/participants' },

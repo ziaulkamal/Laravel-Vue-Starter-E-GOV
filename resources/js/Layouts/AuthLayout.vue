@@ -1,4 +1,5 @@
 <template>
+    <Head v-if="title" :title="title" />
     <div
         class="min-h-screen flex flex-col items-center justify-center p-4"
         :class="{ dark: isDark }"
@@ -82,6 +83,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { Head } from '@inertiajs/vue3';
 import { useTheme } from '@/Composables/useTheme';
 import { Sun, Moon } from '@lucide/vue';
 

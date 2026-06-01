@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout :title="isEdit ? 'Edit Data Pribadi' : 'Tambah Data Pribadi'">
         <div class="page-wrap">
             <AppBreadcrumb :items="[
                 { label: 'Data Pribadi', href: '/persons' },

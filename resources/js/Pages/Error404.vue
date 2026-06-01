@@ -1,4 +1,5 @@
 <template>
+    <Head title="404 — Halaman Tidak Ditemukan" />
     <div class="err">
         <div class="err__bg" aria-hidden="true">
             <div class="err__blob err__blob--1" />
@@ -12,10 +13,10 @@
                 The page you're looking for doesn't exist or has been moved.
             </p>
             <div class="err__actions">
-                <a href="/" class="err__btn err__btn--primary">
+                <Link href="/dashboard" class="err__btn err__btn--primary">
                     <HomeIcon :size="15" />
                     Go to Dashboard
-                </a>
+                </Link>
                 <button class="err__btn err__btn--ghost" @click="history.back()">
                     <ArrowLeftIcon :size="15" />
                     Go Back
@@ -36,6 +37,7 @@
 </template>
 
 <script setup lang="ts">
+import { Head, Link } from '@inertiajs/vue3';
 import { HomeIcon, ArrowLeftIcon } from '@lucide/vue';
 </script>
 

@@ -391,6 +391,8 @@
         border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
         padding: 4px; max-height: 260px; overflow-y: auto;
     }
+    /* Teleported to <body>: positioned via inline fixed coords, so clear stylesheet offsets */
+    .app-sel__panel--floating { top: auto; bottom: auto; left: auto; right: auto; }
     .app-sel__option {
         display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
         border: none; background: transparent; cursor: pointer; text-align: left;

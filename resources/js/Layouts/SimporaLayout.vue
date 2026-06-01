@@ -1,4 +1,5 @@
 <template>
+    <Head v-if="title" :title="title" />
     <BaseLayout
         v-if="isAuthenticated"
         :nav-groups="navGroups"
@@ -14,17 +15,19 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import BaseLayout from '@/Layouts/BaseLayout.vue';
 import { simporaNavGroups } from '@/config/nav';
 import { useAuth } from '@/Composables/useAuth';
 
 interface Props {
     notificationCount?: number
+    title?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
     notificationCount: 0,
+    title: '',
 });
 
 const { user, isAuthenticated, isSuperAdmin, logout, fetchMe } = useAuth();

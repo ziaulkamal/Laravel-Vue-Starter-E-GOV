@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Daftarkan Peserta">
         <div class="page-wrap">
             <AppBreadcrumb :items="[{ label: 'Peserta', href: '/participants' }, { label: 'Daftarkan Peserta' }]" />
             <h1 class="page-title">Daftarkan Peserta</h1>
@@ -48,7 +48,7 @@
                         </div>
 
                         <div class="result-new">
-                            <a href="/persons/create" class="result-new__link">+ Buat Person Baru (jika belum ada di sistem)</a>
+                            <Link href="/persons/create" class="result-new__link">+ Buat Person Baru (jika belum ada di sistem)</Link>
                         </div>
                     </div>
                 </div>
@@ -107,7 +107,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { Search } from '@lucide/vue';
-import { router } from '@inertiajs/vue3';
+import { router, Link } from '@inertiajs/vue3';
 import api           from '@/lib/axios';
 import { useToast }  from '@/Composables/useToast';
 import SimporaLayout from '@/Layouts/SimporaLayout.vue';

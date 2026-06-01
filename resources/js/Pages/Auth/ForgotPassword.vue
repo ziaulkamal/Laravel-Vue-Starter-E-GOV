@@ -37,15 +37,16 @@
         </Transition>
 
         <template #footer>
-            <a href="/login" style="color: #6366f1; font-size: 13px; font-weight: 600;">
+            <Link href="/login" style="color: #6366f1; font-size: 13px; font-weight: 600;">
                 ← Back to sign in
-            </a>
+            </Link>
         </template>
     </AuthLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
+import { Link } from '@inertiajs/vue3';
 import { MailIcon } from '@lucide/vue';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
 import AppInput   from '@/Components/App/AppInput.vue';

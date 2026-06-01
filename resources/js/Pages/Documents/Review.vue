@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Verifikasi Dokumen">
         <div class="page-wrap">
 
             <!-- Header -->
@@ -165,7 +165,7 @@
         </div>
 
         <!-- ─── Preview Modal ─────────────────────────────────── -->
-        <AppModal v-model:open="showPreview" :title="`Preview — ${previewDoc?.type}`" size="lg">
+        <AppModal v-model="showPreview" :title="`Preview — ${previewDoc?.type}`" size="lg">
             <div class="preview-body">
                 <!-- Info peserta -->
                 <div class="preview-meta">
@@ -178,6 +178,15 @@
                         <component :is="statusIcon(previewDoc?.status ?? '')" :size="12" />
                         {{ statusLabel(previewDoc?.status ?? '') }}
                     </span>
+                </div>
+
+                <!-- Alasan penolakan (jika ditolak) -->
+                <div v-if="previewDoc?.status === 'rejected' && previewRejection" class="preview-reject-note">
+                    <XCircle :size="16" class="prn-icon" />
+                    <div>
+                        <div class="prn-title">Alasan Penolakan</div>
+                        <div class="prn-text">{{ previewRejection }}</div>
+                    </div>
                 </div>
 
                 <!-- File viewer -->
@@ -205,23 +214,32 @@
                 </div>
             </div>
 
-            <!-- Aksi di footer modal (hanya jika pending) -->
-            <template v-if="previewDoc?.status === 'pending'" #footer>
-                <AppButton variant="secondary" @click="showPreview = false">Tutup</AppButton>
-                <AppButton variant="danger" @click="showPreview = false; openReject(previewDoc)">
-                    <X :size="15" /> Tolak
-                </AppButton>
-                <AppButton variant="primary" :loading="processingId === previewDoc?.id" @click="approve(previewDoc)">
-                    <Check :size="15" /> Setujui
-                </AppButton>
-            </template>
-            <template v-else #footer>
-                <AppButton variant="secondary" @click="showPreview = false">Tutup</AppButton>
+            <!-- Footer: kiri (navigasi) · kanan (keputusan, hanya pending) -->
+            <template #footer>
+                <div class="preview-foot">
+                    <div class="preview-foot__left">
+                        <AppButton variant="secondary" size="md" @click="showPreview = false">Tutup</AppButton>
+                        <AppButton v-if="previewDownload" variant="ghost" size="md" @click="downloadDoc">
+                            <template #icon><Download :size="15" /></template>
+                            Unduh
+                        </AppButton>
+                    </div>
+                    <div v-if="previewDoc?.status === 'pending'" class="preview-foot__right">
+                        <AppButton variant="danger" size="md" @click="showPreview = false; openReject(previewDoc)">
+                            <template #icon><X :size="15" /></template>
+                            Tolak
+                        </AppButton>
+                        <AppButton variant="success" size="md" :loading="processingId === previewDoc?.id" @click="approve(previewDoc)">
+                            <template #icon><Check :size="15" /></template>
+                            Setujui
+                        </AppButton>
+                    </div>
+                </div>
             </template>
         </AppModal>
 
         <!-- ─── Reject Modal ──────────────────────────────────── -->
-        <AppModal v-model:open="showReject" title="Tolak Dokumen" size="sm">
+        <AppModal v-model="showReject" title="Tolak Dokumen" size="sm">
             <div class="reject-body">
                 <div class="reject-target">
                     <div class="reject-target__icon"><FileX :size="20" /></div>
@@ -241,7 +259,8 @@
             <template #footer>
                 <AppButton variant="secondary" @click="showReject = false">Batal</AppButton>
                 <AppButton variant="danger" :loading="rejecting" :disabled="!rejectNote.trim()" @click="doReject">
-                    <X :size="15" /> Tolak Dokumen
+                    <template #icon><X :size="15" /></template>
+                    Tolak Dokumen
                 </AppButton>
             </template>
         </AppModal>
@@ -251,7 +270,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted } from 'vue';
 import {
-    Search, Eye, Check, X, FileText, FileX,
+    Search, Eye, Check, X, FileText, FileX, Download,
     Clock, CheckCircle2, XCircle, Loader2,
 } from '@lucide/vue';
 import api           from '@/lib/axios';
@@ -361,29 +380,48 @@ onMounted(() => {
 });
 
 // ── Preview (ambil download_url dari endpoint detail) ───────────
-const showPreview     = ref(false);
-const previewDoc      = ref<DocRow | null>(null);
-const previewUrl      = ref('');
-const previewFileType = ref<'image' | 'pdf' | ''>('');
-const previewLoading  = ref(false);
+const showPreview      = ref(false);
+const previewDoc       = ref<DocRow | null>(null);
+const previewUrl       = ref('');
+const previewDownload  = ref('');
+const previewFileType  = ref<'image' | 'pdf' | ''>('');
+const previewRejection = ref('');
+const previewLoading   = ref(false);
 
 async function openPreview(doc: DocRow) {
     previewDoc.value      = doc;
     previewUrl.value      = '';
+    previewDownload.value = '';
+    previewRejection.value = '';
     previewFileType.value = '';
     showPreview.value     = true;
     previewLoading.value  = true;
     try {
-        const res = await api.get(`/api/v1/participants/${doc.participant_id}/documents/${doc.id}`);
+        // Detail dokumen → mime + signed URL. URL dipakai langsung sbg src
+        // <img>/<iframe> (signed route tanpa auth → render lintas-domain aman).
+        const res  = await api.get(`/api/v1/participants/${doc.participant_id}/documents/${doc.id}`);
         const data = res.data?.data;
-        previewUrl.value = data?.download_url ?? '';
         const mime = data?.mime_type ?? '';
-        previewFileType.value = mime.startsWith('image/') ? 'image' : (mime === 'application/pdf' ? 'pdf' : '');
+        previewFileType.value  = mime.startsWith('image/') ? 'image' : (mime === 'application/pdf' ? 'pdf' : '');
+        previewUrl.value       = data?.download_url ?? '';
+        previewDownload.value  = data?.download_file_url ?? data?.download_url ?? '';
+        previewRejection.value = data?.rejection_note ?? '';
     } catch {
         previewUrl.value = '';
     } finally {
         previewLoading.value = false;
     }
+}
+
+/** Unduh berkas (nama otomatis dari backend: nama_kontingen_jenis-dokumen.ext). */
+function downloadDoc() {
+    if (!previewDownload.value) return;
+    const a = document.createElement('a');
+    a.href = previewDownload.value;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
 }
 
 // ── Reject ──────────────────────────────────────────────────────
@@ -571,10 +609,23 @@ function formatDate(d: string) {
 .preview-meta   { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--color-bg-subtle); border-radius: 10px; }
 .preview-meta__name { font-weight: 600; font-size: 13.5px; color: var(--color-text-primary); text-transform: capitalize; }
 .preview-meta__sub  { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+.preview-reject-note {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 14px; border-radius: 10px;
+    background: rgba(239,68,68,.08); border: 1.5px solid rgba(239,68,68,.22);
+}
+.prn-icon  { color: #dc2626; flex-shrink: 0; margin-top: 1px; }
+.prn-title { font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #dc2626; margin-bottom: 3px; }
+.prn-text  { font-size: 13px; color: var(--color-text-primary); line-height: 1.5; }
+
 .preview-viewer { min-height: 260px; display: flex; align-items: center; justify-content: center; border: 1.5px solid var(--color-border); border-radius: 10px; overflow: hidden; background: var(--color-bg-subtle); }
 .preview-img    { max-width: 100%; max-height: 480px; display: block; }
 .preview-pdf    { width: 100%; height: 480px; border: none; }
 .preview-empty  { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--color-text-subtle); padding: 40px; text-align: center; }
+.preview-foot       { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; flex-wrap: wrap; }
+.preview-foot__left,
+.preview-foot__right { display: flex; align-items: center; gap: 8px; }
+.preview-foot__right { margin-left: auto; }
 .preview-empty p { font-size: 13.5px; font-weight: 500; margin: 0; }
 .preview-empty__sub { font-size: 12px; color: var(--color-text-subtle); margin-top: 2px; }
 

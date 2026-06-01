@@ -4,7 +4,7 @@
             {{ label }}<span v-if="required" style="color:var(--color-danger)"> *</span>
         </label>
 
-        <div class="app-sel__row" :class="[`app-sel__row--${size}`, { 'app-sel__row--focused': isFocused, 'app-sel__row--open': isOpen }]">
+        <div ref="rowRef" class="app-sel__row" :class="[`app-sel__row--${size}`, { 'app-sel__row--focused': isFocused, 'app-sel__row--open': isOpen }]">
             <!-- Prefix slot -->
             <span v-if="$slots.prefix" class="app-sel__prefix"><slot name="prefix" /></span>
 
@@ -59,12 +59,15 @@
             </span>
         </div>
 
-        <!-- Custom dropdown panel -->
+        <!-- Custom dropdown panel (teleported so it escapes modal/scroll clipping) -->
+        <Teleport to="body">
         <Transition name="dropdown">
             <div
                 v-if="!native && isOpen"
-                class="app-sel__panel"
+                ref="panelRef"
+                class="app-sel__panel app-sel__panel--floating"
                 role="listbox"
+                :style="panelStyle"
                 @keydown.esc="close"
             >
                 <button
@@ -96,6 +99,7 @@
                 </button>
             </div>
         </Transition>
+        </Teleport>
 
         <p v-if="error" class="app-sel__msg app-sel__msg--error" role="alert">{{ error }}</p>
         <p v-else-if="hint" class="app-sel__msg app-sel__msg--hint">{{ hint }}</p>
@@ -103,7 +107,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import type { AppSelectOption, AppSize } from '@/types';
 
 type SelectOptionRaw = AppSelectOption | string | number;
@@ -141,6 +145,35 @@ let _id = 0;
 const selId     = `app-sel-${++_id}`;
 const isFocused = ref(false);
 const isOpen    = ref(false);
+const rowRef    = ref<HTMLElement | null>(null);
+const panelRef  = ref<HTMLElement | null>(null);
+const panelStyle = ref<Record<string, string>>({});
+
+const MAX_PANEL_H = 260;
+
+function updatePanelPosition(): void {
+    const el = rowRef.value;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const spaceAbove = r.top;
+    // open upward if not enough room below but more room above
+    const openUp = spaceBelow < Math.min(MAX_PANEL_H, 180) && spaceAbove > spaceBelow;
+    const style: Record<string, string> = {
+        position: 'fixed',
+        left: `${r.left}px`,
+        width: `${r.width}px`,
+        zIndex: '1100',
+    };
+    if (openUp) {
+        style.bottom = `${window.innerHeight - r.top + 4}px`;
+        style.maxHeight = `${Math.min(MAX_PANEL_H, spaceAbove - 8)}px`;
+    } else {
+        style.top = `${r.bottom + 4}px`;
+        style.maxHeight = `${Math.min(MAX_PANEL_H, spaceBelow - 8)}px`;
+    }
+    panelStyle.value = style;
+}
 
 const selectedLabel = computed<string>(() => {
     const opt = props.options.find(o => (typeof o === 'object' && o !== null ? (o as { value?: string | number }).value : o) === props.modelValue);
@@ -148,7 +181,11 @@ const selectedLabel = computed<string>(() => {
     return typeof opt === 'object' && opt !== null ? ((opt as { label?: string }).label ?? String(opt)) : String(opt);
 });
 
-function toggle(): void { isOpen.value = !isOpen.value; }
+function open(): void {
+    isOpen.value = true;
+    nextTick(updatePanelPosition);
+}
+function toggle(): void { isOpen.value ? close() : open(); }
 function close(): void  { isOpen.value = false; }
 function select(val: string | number): void {
     emit('update:modelValue', val);
@@ -156,9 +193,22 @@ function select(val: string | number): void {
 }
 
 function onOutsideClick(e: MouseEvent): void {
-    if (!(e.target as Element).closest('.app-sel-wrap')) close();
+    const target = e.target as Element;
+    if (target.closest('.app-sel-wrap') || target.closest('.app-sel__panel--floating')) return;
+    close();
 }
-onMounted(() => document.addEventListener('click', onOutsideClick));
-onUnmounted(() => document.removeEventListener('click', onOutsideClick));
+function onReposition(): void {
+    if (isOpen.value) updatePanelPosition();
+}
+onMounted(() => {
+    document.addEventListener('click', onOutsideClick);
+    window.addEventListener('resize', onReposition);
+    window.addEventListener('scroll', onReposition, true);
+});
+onUnmounted(() => {
+    document.removeEventListener('click', onOutsideClick);
+    window.removeEventListener('resize', onReposition);
+    window.removeEventListener('scroll', onReposition, true);
+});
 </script>
 

@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Manajemen User">
         <div class="page-wrap">
             <div class="page-header">
                 <div>
@@ -83,7 +83,7 @@
             </AppCard>
         </div>
 
-        <AppModal v-model:open="confirmDelete" title="Hapus User" size="sm">
+        <AppModal v-model="confirmDelete" title="Hapus User" size="sm">
             <p style="font-size:13.5px; color:var(--color-text-muted)">
                 Hapus akun <strong>{{ deleteTarget?.name }}</strong> ({{ deleteTarget?.email }})? Tindakan ini tidak dapat dibatalkan.
             </p>

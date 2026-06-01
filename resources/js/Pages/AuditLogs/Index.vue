@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Audit Log">
         <div class="page-wrap">
             <div class="page-header">
                 <h1 class="page-title">Audit Log Sistem</h1>
@@ -47,7 +47,7 @@
         </div>
 
         <!-- Detail Modal -->
-        <AppModal v-model:open="showDetail" title="Detail Audit Log" size="md">
+        <AppModal v-model="showDetail" title="Detail Audit Log" size="md">
             <div v-if="selectedLog" class="detail-wrap">
                 <div class="detail-header">
                     <AppBadge :color="actionColor(selectedLog.action)" size="sm">{{ selectedLog.action }}</AppBadge>

@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout :title="isEdit ? 'Edit User' : 'Tambah User'">
         <div class="page-wrap">
             <AppBreadcrumb :items="[{ label: 'Users', href: '/users' }, { label: isEdit ? 'Edit User' : 'Tambah User' }]" />
             <h1 class="page-title">{{ isEdit ? 'Edit User' : 'Tambah User' }}</h1>

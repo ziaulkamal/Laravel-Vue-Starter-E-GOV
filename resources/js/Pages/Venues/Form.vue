@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout :title="isEdit ? 'Edit Venue' : 'Tambah Venue'">
         <div class="page-wrap">
             <AppBreadcrumb :items="[
                 { label: 'Venue', href: '/venues' },

@@ -46,7 +46,7 @@
         <template #footer>
             <span style="color: var(--color-text-muted); font-size: 13px;">
                 Already have an account?
-                <a href="/login" style="color: #6366f1; font-weight: 600;">Sign in</a>
+                <Link href="/login" style="color: #6366f1; font-weight: 600;">Sign in</Link>
             </span>
         </template>
     </AuthLayout>
@@ -54,6 +54,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue';
+import { Link } from '@inertiajs/vue3';
 import AuthLayout  from '@/Layouts/AuthLayout.vue';
 import AppInput    from '@/Components/App/AppInput.vue';
 import AppButton   from '@/Components/App/AppButton.vue';

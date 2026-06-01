@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout :title="venue?.name ?? 'Detail Venue'">
         <div class="page-wrap">
             <AppBreadcrumb :items="[{ label: 'Venue', href: '/venues' }, { label: venue?.name ?? 'Detail' }]" />
 

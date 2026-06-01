@@ -1,5 +1,5 @@
 <template>
-    <SimporaLayout>
+    <SimporaLayout title="Venue">
         <div class="page-wrap">
             <div class="page-header">
                 <div>
