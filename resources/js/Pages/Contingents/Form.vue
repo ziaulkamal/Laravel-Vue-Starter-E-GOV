@@ -56,6 +56,7 @@ import api             from '@/lib/axios';
 import { decodeId, encodeId } from '@/lib/hashid';
 import { useToast }    from '@/Composables/useToast';
 import { useNotFound } from '@/Composables/useNotFound';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import SimporaLayout   from '@/Layouts/SimporaLayout.vue';
 import AppCard         from '@/Components/App/AppCard.vue';
 import AppButton       from '@/Components/App/AppButton.vue';
@@ -67,6 +68,7 @@ import AppSelectSearch from '@/Components/App/AppSelectSearch.vue';
 interface Props { id?: string | number }
 const props = defineProps<Props>();
 const toast = useToast();
+usePageGuard({ anyPermission: ['contingents.create', 'contingents.update'] });
 const { notFound } = useNotFound();
 
 const isEdit = computed(() => props.id != null && props.id !== '');

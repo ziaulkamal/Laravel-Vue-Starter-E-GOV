@@ -4,13 +4,28 @@
             <!-- Page Header -->
             <div class="page-header">
                 <div>
-                    <h1 class="page-title">Dashboard</h1>
-                    <p class="page-subtitle">Selamat datang di SIMPORA 2026 — PORA XV Aceh Jaya</p>
+                    <h1 class="page-title">Halo, {{ firstName }} 👋</h1>
+                    <p class="page-subtitle">
+                        <span class="role-chip">{{ roleLabel }}</span>
+                        · SIMPORA 2026 — PORA XV Aceh Jaya
+                    </p>
                 </div>
             </div>
 
-            <!-- KPI Row -->
-            <div class="kpi-grid">
+            <!-- Pintasan per role -->
+            <div class="quick-grid">
+                <Link v-for="q in quickActions" :key="q.href" :href="q.href" class="quick-card">
+                    <component :is="q.icon" :size="20" class="quick-card__icon" />
+                    <div class="quick-card__body">
+                        <span class="quick-card__title">{{ q.title }}</span>
+                        <span class="quick-card__desc">{{ q.desc }}</span>
+                    </div>
+                    <ChevronRight :size="18" class="quick-card__chevron" />
+                </Link>
+            </div>
+
+            <!-- KPI Row — hanya admin/panitia/super -->
+            <div v-if="canSeeGlobalKpi" class="kpi-grid">
                 <KpiCard label="Total Kontingen"  :value="23"  icon="Shield"   color="accent" />
                 <KpiCard label="Total Atlet"      :value="342" icon="Users"    color="info" />
                 <KpiCard label="Tanding Hari Ini" :value="18"  icon="Calendar" color="warning" />
@@ -19,8 +34,8 @@
 
             <!-- Content Row -->
             <div class="content-grid">
-                <!-- Pertandingan Hari Ini -->
-                <AppCard>
+                <!-- Pertandingan Hari Ini — semua role yang bisa lihat jadwal -->
+                <AppCard v-if="can('matches.view')">
                     <template #header>
                         <div class="card-header-row">
                             <span class="card-header-title">Pertandingan Hari Ini</span>
@@ -42,8 +57,8 @@
                     </div>
                 </AppCard>
 
-                <!-- Dokumen Pending -->
-                <AppCard>
+                <!-- Dokumen Pending — hanya yang bisa verifikasi -->
+                <AppCard v-if="can('documents.verify')">
                     <template #header>
                         <div class="card-header-row">
                             <span class="card-header-title">Dokumen Pending</span>
@@ -62,8 +77,8 @@
                 </AppCard>
             </div>
 
-            <!-- Klasemen Top 5 -->
-            <AppCard>
+            <!-- Klasemen Top 5 — semua role yang bisa lihat hasil -->
+            <AppCard v-if="can('results.view')">
                 <template #header>
                     <div class="card-header-row">
                         <span class="card-header-title">Klasemen Sementara — Top 5</span>
@@ -99,11 +114,48 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
+import {
+    ChevronRight, Users, FileCheck, Gavel, BarChart2,
+    Shield, Building2, Calendar, UserCog,
+} from '@lucide/vue';
 import SimporaLayout from '@/Layouts/SimporaLayout.vue';
 import KpiCard       from '@/Components/Dashboard/KpiCard.vue';
 import AppCard       from '@/Components/App/AppCard.vue';
 import AppBadge      from '@/Components/App/AppBadge.vue';
+import { useAuth }   from '@/Composables/useAuth';
+
+const { user, roles, can, hasAnyRole } = useAuth();
+
+const firstName = computed(() => (user.value?.name ?? 'Pengguna').split(' ')[0]);
+
+const ROLE_LABELS: Record<string, string> = {
+    super_admin: 'Super Admin', panitia_besar: 'Panitia Besar',
+    admin_kontingen: 'Admin Kontingen', admin_penilaian: 'Admin Penilaian',
+    admin_venue: 'Admin Venue', viewer: 'Viewer',
+};
+const roleLabel = computed(() => {
+    const r = roles.value;
+    if (!r.length) return 'Pengguna';
+    return r.map((x) => ROLE_LABELS[x] ?? x).join(', ');
+});
+
+const canSeeGlobalKpi = computed(() => hasAnyRole(['super_admin', 'panitia_besar']));
+
+// Pintasan kontekstual per kemampuan (permission-driven, jadi otomatis sesuai role).
+const quickActions = computed(() => {
+    const items: { title: string; desc: string; href: string; icon: any }[] = [];
+    if (can('participants.view')) items.push({ title: 'Peserta', desc: 'Kelola atlet & ofisial', href: '/participants', icon: Users });
+    if (can('documents.verify')) items.push({ title: 'Verifikasi Dokumen', desc: 'Antrian berkas peserta', href: '/documents/review', icon: FileCheck });
+    if (can('contingents.view')) items.push({ title: 'Kontingen', desc: 'Data kontingen', href: '/contingents', icon: Shield });
+    if (hasAnyRole(['super_admin', 'panitia_besar', 'admin_penilaian'])) items.push({ title: 'Tugas Penilaian', desc: 'Pertandingan yang Anda nilai', href: '/judges/my-assignments', icon: Gavel });
+    if (can('matches.view')) items.push({ title: 'Jadwal', desc: 'Jadwal pertandingan', href: '/matches', icon: Calendar });
+    if (can('venues.manage')) items.push({ title: 'Venue', desc: 'Kelola venue', href: '/venues', icon: Building2 });
+    if (can('results.view')) items.push({ title: 'Klasemen', desc: 'Perolehan medali', href: '/leaderboard', icon: BarChart2 });
+    if (can('users.view')) items.push({ title: 'Users', desc: 'Manajemen akun', href: '/users', icon: UserCog });
+    return items;
+});
 
 const todayMatches = [
     { code: 'M-001', name: 'Silat Kumite 60kg Putra',    venue: 'GOR Serbaguna',      time: '08:00', status: 'ongoing' },
@@ -145,7 +197,24 @@ function statusLabel(status: string) {
 .page-wrap    { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
 .page-header  { display: flex; align-items: flex-start; justify-content: space-between; }
 .page-title   { font-size: 22px; font-weight: 700; color: var(--color-text-primary); letter-spacing: -0.02em; }
-.page-subtitle{ font-size: 13px; color: var(--color-text-muted); margin-top: 3px; }
+.page-subtitle{ font-size: 13px; color: var(--color-text-muted); margin-top: 5px; display: flex; align-items: center; gap: 6px; }
+.role-chip    { display: inline-block; padding: 2px 9px; border-radius: 999px; background: var(--color-accent-subtle); color: var(--color-accent); font-size: 11.5px; font-weight: 600; }
+
+.quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+@media (max-width: 900px) { .quick-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .quick-grid { grid-template-columns: 1fr; } }
+.quick-card {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+    background: var(--color-bg-card, var(--color-bg-subtle));
+    border: 1px solid var(--color-border); border-radius: 14px;
+    text-decoration: none; transition: border-color .15s ease, transform .15s ease;
+}
+.quick-card:hover { border-color: var(--color-accent); transform: translateY(-2px); }
+.quick-card__icon { flex: 0 0 auto; color: var(--color-accent); }
+.quick-card__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.quick-card__title { font-size: 13.5px; font-weight: 600; color: var(--color-text-primary); }
+.quick-card__desc  { font-size: 11.5px; color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quick-card__chevron { flex: 0 0 auto; color: var(--color-text-subtle); }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 @media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }

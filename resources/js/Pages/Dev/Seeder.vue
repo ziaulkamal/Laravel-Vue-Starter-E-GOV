@@ -116,7 +116,7 @@
                             <AppRadio v-model="cleanScope" value="simulation" name="scope" label="Hanya simulasi"
                                 description="Master & super admin tetap." />
                             <AppRadio v-model="cleanScope" value="all" name="scope" label="Reset total"
-                                description="migrate:fresh — semua data hilang." />
+                                description="Hapus data aktivitas. Fondasi tetap: wilayah, cabor, jenis berkas, template, kontingen, user default (1/role + 1/kontingen)." />
                         </div>
                     </div>
                     <AppButton variant="danger" size="md" @click="confirmOpen = true">Hapus Data…</AppButton>
@@ -165,7 +165,7 @@
         <AppModal v-model="confirmOpen" title="Konfirmasi Penghapusan" size="sm">
             <p class="confirm-text">
                 Anda akan menghapus data
-                <strong>{{ cleanScope === 'all' ? 'SECARA TOTAL (reset database)' : 'simulasi' }}</strong>.
+                <strong>{{ cleanScope === 'all' ? 'SECARA TOTAL (sisakan fondasi + user default)' : 'simulasi' }}</strong>.
                 Tindakan ini tidak dapat dibatalkan. Ketik <code>CLEAN</code> untuk melanjutkan.
             </p>
             <AppInput v-model="confirmText" placeholder="CLEAN" />

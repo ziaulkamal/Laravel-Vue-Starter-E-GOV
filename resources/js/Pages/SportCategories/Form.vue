@@ -40,6 +40,14 @@
                             <label class="field-label">Status Aktif</label>
                             <AppToggle v-model="form.is_active" label="Aktif" />
                         </div>
+
+                        <div class="form-field">
+                            <label class="field-label">Pendaftaran Peserta</label>
+                            <AppToggle v-model="form.registration_open" label="Buka pendaftaran" />
+                            <p class="field-hint">Admin kontingen hanya bisa mendaftarkan atlet saat pendaftaran dibuka.</p>
+                        </div>
+
+                        <AppInput v-if="form.registration_open" v-model="form.registration_deadline" label="Batas Pendaftaran (opsional)" type="date" :error="errors.registration_deadline" />
                     </div>
 
                     <!-- Best of 3 — hanya untuk sub-cabor head-to-head (scoring skor/poin) -->
@@ -65,6 +73,7 @@ import api             from '@/lib/axios';
 import { encodeId, decodeId } from '@/lib/hashid';
 import { useToast }    from '@/Composables/useToast';
 import { useNotFound } from '@/Composables/useNotFound';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import SimporaLayout from '@/Layouts/SimporaLayout.vue';
 import AppCard       from '@/Components/App/AppCard.vue';
 import AppButton     from '@/Components/App/AppButton.vue';
@@ -81,12 +90,14 @@ const isEdit  = computed(() => !!props.id);
 const realId  = isEdit.value ? decodeId(props.id as string | number) : NaN;
 const loading = ref(false);
 const toast   = useToast();
+usePageGuard({ permission: 'sports.manage' });
 const { notFound } = useNotFound();
 
 const form = reactive({
     sport_id: '', name: '', gender_rule: 'male', participant_type: 'individual',
     min_players: 1, max_players: 1, match_format: 'final_only',
     scoring_type: 'point', uses_bo3: false, min_age: '', max_age: '', is_active: true,
+    registration_open: false, registration_deadline: '',
 });
 const errors = reactive<Record<string, string>>({});
 
@@ -146,6 +157,8 @@ async function fetchCategory() {
         form.min_age          = c.min_age != null ? String(c.min_age) : '';
         form.max_age          = c.max_age != null ? String(c.max_age) : '';
         form.is_active        = !!c.is_active;
+        form.registration_open     = !!c.registration_open;
+        form.registration_deadline = c.registration_deadline ? String(c.registration_deadline).slice(0, 10) : '';
     } catch (e: any) {
         if (e?.response?.status === 404) { notFound(); return; }
         toast.error(e?.response?.data?.message ?? 'Gagal memuat data sub-cabor');
@@ -181,6 +194,8 @@ async function submit() {
         min_age:          form.min_age !== '' ? Number(form.min_age) : null,
         max_age:          form.max_age !== '' ? Number(form.max_age) : null,
         is_active:        form.is_active,
+        registration_open:     form.registration_open,
+        registration_deadline: form.registration_open && form.registration_deadline ? form.registration_deadline : null,
     };
 
     try {
@@ -209,6 +224,7 @@ async function submit() {
 @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
 .form-field  { display: flex; flex-direction: column; gap: 6px; }
 .field-label { font-size: 12.5px; font-weight: 600; color: var(--color-text-primary); }
+.field-hint  { font-size: 11px; color: var(--color-text-muted); margin: 2px 0 0; line-height: 1.4; }
 .required    { color: var(--color-danger); }
 .radio-row   { display: flex; gap: 16px; flex-wrap: wrap; }
 .bo3-field   { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--color-border); }

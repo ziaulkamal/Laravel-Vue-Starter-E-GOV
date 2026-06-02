@@ -63,6 +63,7 @@ import { Eye, Pencil } from '@lucide/vue';
 import api            from '@/lib/axios';
 import { encodeId }   from '@/lib/hashid';
 import SimporaLayout  from '@/Layouts/SimporaLayout.vue';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import AppButton      from '@/Components/App/AppButton.vue';
 import AppCard        from '@/Components/App/AppCard.vue';
 import AppBadge       from '@/Components/App/AppBadge.vue';
@@ -72,6 +73,8 @@ interface Lodging {
     id: number; name: string; address: string | null;
     capacity: number | null; pic_name: string | null; is_active: boolean;
 }
+
+usePageGuard({ anyRole: ['super_admin', 'panitia_besar'] });
 
 const lodgings = ref<Lodging[]>([]);
 const loading  = ref(false);

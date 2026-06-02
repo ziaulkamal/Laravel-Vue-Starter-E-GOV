@@ -80,6 +80,7 @@ import api            from '@/lib/axios';
 import { encodeId, decodeId } from '@/lib/hashid';
 import { useToast }   from '@/Composables/useToast';
 import { useNotFound } from '@/Composables/useNotFound';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import SimporaLayout  from '@/Layouts/SimporaLayout.vue';
 import AppCard        from '@/Components/App/AppCard.vue';
 import AppButton      from '@/Components/App/AppButton.vue';
@@ -92,6 +93,7 @@ import AppDivider     from '@/Components/App/AppDivider.vue';
 interface Props { id: string | number }
 const props = defineProps<Props>();
 const toast = useToast();
+usePageGuard({ permission: 'participants.update' });
 const { notFound } = useNotFound();
 const realId = decodeId(props.id);
 

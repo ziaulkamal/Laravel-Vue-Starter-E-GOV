@@ -40,7 +40,13 @@
                             </td>
                             <td class="lb-td lb-name">
                                 <div class="kontingen-cell">
-                                    <div class="logo-sm">{{ entry.short }}</div>
+                                    <ContingentLogo
+                                        :wilayah-kode="entry.wilayah_kode"
+                                        :short-name="entry.short"
+                                        :name="entry.name"
+                                        :size="32"
+                                        :radius="8"
+                                    />
                                     <span>{{ entry.name }}</span>
                                 </div>
                             </td>
@@ -94,18 +100,19 @@ import AppCard       from '@/Components/App/AppCard.vue';
 import AppButton     from '@/Components/App/AppButton.vue';
 import AppSelect     from '@/Components/App/AppSelect.vue';
 import AppEmptyState from '@/Components/App/AppEmptyState.vue';
+import ContingentLogo from '@/Components/App/ContingentLogo.vue';
 
 const refreshing    = ref(false);
 const lastUpdated   = ref('5 menit lalu');
 const selectedCabor = ref('');
 
 const leaderboard = [
-    { name: 'Aceh Jaya',    short: 'ACJ', gold: 8, silver: 5, bronze: 3 },
-    { name: 'Banda Aceh',   short: 'BNA', gold: 7, silver: 4, bronze: 4 },
-    { name: 'Aceh Besar',   short: 'ABR', gold: 5, silver: 6, bronze: 2 },
-    { name: 'Pidie',        short: 'PDI', gold: 4, silver: 3, bronze: 5 },
-    { name: 'Lhokseumawe', short: 'LHO', gold: 3, silver: 4, bronze: 6 },
-    { name: 'Bireuen',      short: 'BIR', gold: 2, silver: 2, bronze: 3 },
+    { name: 'Aceh Jaya',    short: 'ACJ', wilayah_kode: '11.14', gold: 8, silver: 5, bronze: 3 },
+    { name: 'Banda Aceh',   short: 'BNA', wilayah_kode: '11.71', gold: 7, silver: 4, bronze: 4 },
+    { name: 'Aceh Besar',   short: 'ABR', wilayah_kode: '11.06', gold: 5, silver: 6, bronze: 2 },
+    { name: 'Pidie',        short: 'PDI', wilayah_kode: '11.07', gold: 4, silver: 3, bronze: 5 },
+    { name: 'Lhokseumawe', short: 'LHO', wilayah_kode: '11.73', gold: 3, silver: 4, bronze: 6 },
+    { name: 'Bireuen',      short: 'BIR', wilayah_kode: '11.11', gold: 2, silver: 2, bronze: 3 },
 ];
 
 const caborOptions = [
@@ -154,5 +161,4 @@ function refresh() {
 .lb-gold-count { font-weight: 700; color: var(--color-gold); }
 .lb-total   { font-weight: 700; color: var(--color-accent); }
 .kontingen-cell { display: flex; align-items: center; gap: 10px; }
-.logo-sm    { width: 32px; height: 32px; border-radius: 8px; background: var(--color-accent-subtle); color: var(--color-accent); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 </style>

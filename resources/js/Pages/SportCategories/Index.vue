@@ -6,7 +6,7 @@
                     <h1 class="page-title">Sub-Cabor</h1>
                     <p class="page-subtitle">{{ total }} sub-cabor (nomor pertandingan) PORA XV</p>
                 </div>
-                <AppButton variant="primary" size="md" @click="$inertia.visit('/sport-categories/create')">
+                <AppButton v-if="can('sports.manage')" variant="primary" size="md" @click="$inertia.visit('/sport-categories/create')">
                     + Tambah Sub-Cabor
                 </AppButton>
             </div>
@@ -66,6 +66,7 @@
                                         <div class="action-btns">
                                             <AppButton size="xs" variant="ghost" title="Lihat (klasemen/bagan)" @click="$inertia.visit(`/sport-categories/${encodeId(sc.id)}`)"><Eye :size="14" /></AppButton>
                                             <AppButton
+                                                v-if="can('sports.manage')"
                                                 size="xs"
                                                 variant="ghost"
                                                 :loading="togglingId === sc.id"
@@ -74,7 +75,7 @@
                                             >
                                                 <Power :size="14" :class="sc.is_active ? 'ic-on' : 'ic-off'" />
                                             </AppButton>
-                                            <AppButton size="xs" variant="ghost" title="Edit" @click="$inertia.visit(`/sport-categories/${encodeId(sc.id)}/edit`)"><Pencil :size="14" /></AppButton>
+                                            <AppButton v-if="can('sports.manage')" size="xs" variant="ghost" title="Edit" @click="$inertia.visit(`/sport-categories/${encodeId(sc.id)}/edit`)"><Pencil :size="14" /></AppButton>
                                         </div>
                                     </td>
                                 </tr>
@@ -105,6 +106,8 @@ import { Search, Pencil, Power, Eye } from '@lucide/vue';
 import api           from '@/lib/axios';
 import { encodeId }  from '@/lib/hashid';
 import { useToast }  from '@/Composables/useToast';
+import { useAuth }   from '@/Composables/useAuth';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import SimporaLayout from '@/Layouts/SimporaLayout.vue';
 import AppButton     from '@/Components/App/AppButton.vue';
 import AppCard       from '@/Components/App/AppCard.vue';
@@ -113,6 +116,9 @@ import AppEmptyState from '@/Components/App/AppEmptyState.vue';
 import AppPagination from '@/Components/App/AppPagination.vue';
 
 const toast = useToast();
+
+usePageGuard({ permission: 'sports.view' });
+const { can } = useAuth();
 
 const categories  = ref<any[]>([]);
 const loading     = ref(false);

@@ -25,7 +25,7 @@
                                 <AppButton variant="secondary" size="sm">Ubah Status ▾</AppButton>
                             </template>
                         </AppDropdown>
-                        <AppButton v-if="['scheduled','postponed'].includes(match.status)" variant="ghost" size="sm" @click="$inertia.visit(`/matches/${encodeId(realId)}/edit`)"><Pencil :size="14" /> Edit</AppButton>
+                        <AppButton v-if="can('matches.manage') && ['scheduled','postponed'].includes(match.status)" variant="ghost" size="sm" @click="$inertia.visit(`/matches/${encodeId(realId)}/edit`)"><Pencil :size="14" /> Edit</AppButton>
                     </div>
                 </div>
             </AppCard>
@@ -195,6 +195,13 @@
                                 <span>{{ cap(g.name) ?? '—' }}</span>
                                 <AppBadge v-if="g.side" :color="g.side === 'home' ? 'info' : 'default'" size="sm">{{ g.side === 'home' ? 'Home' : 'Away' }}</AppBadge>
                                 <span class="lineup-count">{{ g.athletes.length }} atlet</span>
+                                <AppButton
+                                    v-if="canEditLineupFor(g.contingent_id) && lineupEditable"
+                                    class="lineup-add" size="xs" variant="ghost"
+                                    @click="openAddLineup(g)"
+                                >
+                                    <Plus :size="14" /> Atlet
+                                </AppButton>
                             </div>
 
                             <!-- Ofisial -->
@@ -214,6 +221,14 @@
                                     <span class="jersey">{{ a.jersey_number ?? '–' }}</span>
                                     <span class="athlete-name">{{ cap(a.name) ?? '—' }}</span>
                                     <span v-if="a.gender" class="athlete-gender">{{ a.gender === 'male' ? 'Putra' : a.gender === 'female' ? 'Putri' : a.gender }}</span>
+                                    <button
+                                        v-if="canEditLineupFor(g.contingent_id) && lineupEditable"
+                                        class="lineup-del" title="Keluarkan dari susunan"
+                                        :disabled="removingId === a.id"
+                                        @click="removeLineup(a.id)"
+                                    >
+                                        <Trash2 :size="13" />
+                                    </button>
                                 </div>
                             </div>
 
@@ -338,12 +353,37 @@
                 <AppButton variant="primary" :loading="savingJudge" :disabled="!judgePick" @click="addJudge">Tugaskan</AppButton>
             </template>
         </AppModal>
+
+        <AppModal v-model="showAddLineup" :title="`Tambah Atlet — ${cap(lineupTarget?.name) ?? 'Kontingen'}`" size="sm">
+            <div class="add-lineup">
+                <AppSelectSearch
+                    v-model="lineupPick"
+                    label="Atlet (terdaftar di sub-cabor ini)"
+                    placeholder="Pilih atlet"
+                    :loading="loadingLineupOpts"
+                    :options="lineupOptions"
+                />
+                <p v-if="!loadingLineupOpts && !lineupOptions.length" class="add-lineup__empty">
+                    Tidak ada atlet yang bisa ditambahkan. Pastikan atlet sudah <strong>terdaftar &amp; disetujui</strong>
+                    di sub-cabor <strong>{{ match?.sport_category?.name ?? '—' }}</strong> (menu Sub-Cabor → Daftarkan Atlet),
+                    atau semua atlet sudah masuk susunan.
+                </p>
+                <label class="add-lineup__jersey">
+                    <span>No. Punggung (opsional)</span>
+                    <input v-model="lineupJersey" type="number" min="1" max="99" placeholder="—" />
+                </label>
+            </div>
+            <template #footer>
+                <AppButton variant="secondary" @click="showAddLineup = false">Batal</AppButton>
+                <AppButton variant="primary" :loading="savingLineup" :disabled="!lineupPick" @click="saveLineup">Tambahkan</AppButton>
+            </template>
+        </AppModal>
     </SimporaLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
-import { Pencil, Trash2 } from '@lucide/vue';
+import { Pencil, Trash2, Plus } from '@lucide/vue';
 import api            from '@/lib/axios';
 import { decodeId, encodeId } from '@/lib/hashid';
 import { useNotFound } from '@/Composables/useNotFound';
@@ -365,7 +405,7 @@ interface Props { id: string | number }
 const props = defineProps<Props>();
 const { notFound } = useNotFound();
 const toast = useToast();
-const { user, isSuperAdmin, hasRole } = useAuth();
+const { user, isSuperAdmin, hasRole, can, kontingenId } = useAuth();
 const realId = decodeId(props.id);
 
 // ── State penilaian (scoring) ────────────────────────────────────────────────
@@ -454,10 +494,107 @@ const squadGroups = computed(() => {
             .sort((a: any, b: any) => (a.jersey_number ?? 99) - (b.jersey_number ?? 99));
         const offs = [...(officials.value[cid] ?? [])]
             .sort((a, b) => (ROLE_ORDER[a.role] ?? 9) - (ROLE_ORDER[b.role] ?? 9));
-        return { contingent_id: cid, name: c?.name, short_name: c?.short_name, wilayah_kode: c?.wilayah_kode, side: p.side, athletes, officials: offs };
+        return { contingent_id: cid, match_participant_id: p.id, name: c?.name, short_name: c?.short_name, wilayah_kode: c?.wilayah_kode, side: p.side, athletes, officials: offs };
     });
 });
 const squadEmpty = computed(() => squadGroups.value.every((g: any) => !g.athletes.length && !g.officials.length));
+
+// ── Editor lineup (susunan atlet per pertandingan) ───────────────────────────
+// Hak: panitia/penilaian (results.manage) untuk semua kontingen; admin kontingen
+// hanya kontingennya sendiri. Lihat MatchLineupController::canManageLineup di backend.
+// Status yang mengizinkan ubah susunan: Terjadwal (semua yg berhak),
+// Ditunda hanya super admin. Berlangsung/Selesai/Dibatalkan terkunci total.
+const lineupEditable = computed(() => {
+    const s = match.value?.status;
+    if (s === 'scheduled') return true;
+    if (s === 'postponed') return isSuperAdmin.value;
+    return false;
+});
+function canEditLineupFor(cid: number): boolean {
+    if (can('results.manage')) return true;
+    return hasRole('admin_kontingen') && kontingenId.value != null && Number(kontingenId.value) === Number(cid);
+}
+
+const showAddLineup = ref(false);
+const lineupTarget  = ref<{ contingent_id: number; match_participant_id: number; name?: string } | null>(null);
+const lineupOptions = ref<{ value: number; label: string }[]>([]);
+const loadingLineupOpts = ref(false);
+const lineupPick    = ref<number | null>(null);
+const lineupJersey  = ref<string>('');
+const savingLineup  = ref(false);
+const removingId    = ref<number | null>(null);
+
+async function openAddLineup(g: any) {
+    lineupTarget.value = { contingent_id: g.contingent_id, match_participant_id: g.match_participant_id, name: g.name };
+    lineupPick.value = null;
+    lineupJersey.value = '';
+    showAddLineup.value = true;
+    await fetchLineupOptions(g.contingent_id);
+}
+
+async function fetchLineupOptions(cid: number) {
+    loadingLineupOpts.value = true;
+    lineupOptions.value = [];
+    const scId = match.value?.sport_category?.id ?? match.value?.sport_category_id;
+    try {
+        const res = await api.get('/api/v1/participants', {
+            params: { contingent_id: cid, sport_category_id: scId, registration_status: 'approved', role: 'athlete', per_page: 200 },
+        });
+        const raw  = res.data?.data;
+        const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+        // Buang atlet yang sudah ada di lineup kontingen ini.
+        const taken = new Set(
+            lineups.value
+                .filter((l: any) => (l.match_participant?.contingent?.id ?? l.match_participant?.contingent_id) === cid)
+                .map((l: any) => l.participant_id ?? l.participant?.id),
+        );
+        lineupOptions.value = list
+            .filter(Boolean)
+            .filter((p: any) => !taken.has(p.id))
+            .map((p: any) => ({ value: p.id, label: cap(p.person?.nama_lengkap) ?? `Peserta #${p.id}` }));
+    } catch {
+        lineupOptions.value = [];
+    } finally {
+        loadingLineupOpts.value = false;
+    }
+}
+
+async function saveLineup() {
+    if (!lineupTarget.value || !lineupPick.value) return;
+    savingLineup.value = true;
+    try {
+        await api.post(`/api/v1/matches/${realId}/lineups`, {
+            match_participant_id: lineupTarget.value.match_participant_id,
+            participant_id:       lineupPick.value,
+            jersey_number:        lineupJersey.value ? Number(lineupJersey.value) : null,
+        });
+        toast.success('Atlet ditambahkan ke susunan');
+        showAddLineup.value = false;
+        await refreshLineups();
+    } catch (e: any) {
+        toast.error(e?.response?.data?.message ?? 'Gagal menambah atlet');
+    } finally {
+        savingLineup.value = false;
+    }
+}
+
+async function removeLineup(lineupId: number) {
+    removingId.value = lineupId;
+    try {
+        await api.delete(`/api/v1/matches/${realId}/lineups/${lineupId}`);
+        toast.success('Atlet dikeluarkan dari susunan');
+        await refreshLineups();
+    } catch (e: any) {
+        toast.error(e?.response?.data?.message ?? 'Gagal mengeluarkan atlet');
+    } finally {
+        removingId.value = null;
+    }
+}
+
+async function refreshLineups() {
+    const ln = await safeGet(`/api/v1/matches/${realId}/lineups`);
+    lineups.value = Array.isArray(ln) ? ln : [];
+}
 
 const medalOrder: Record<string, number> = { gold: 0, silver: 1, bronze: 2 };
 const medalsSorted = computed(() => [...medals.value].sort((a, b) => (medalOrder[a.medal] ?? 9) - (medalOrder[b.medal] ?? 9)));
@@ -524,7 +661,16 @@ const TRANSITIONS: Record<string, string[]> = {
 const statusMenuItems = computed(() => {
     const cur = match.value?.status;
     if (!cur) return [];
-    return (TRANSITIONS[cur] ?? []).map(s => ({
+    // Manajemen jadwal (panitia/super) boleh semua transisi; juri/penilai yang
+    // ditugaskan hanya boleh ongoing/finished (mulai & selesaikan penilaian);
+    // role lain = view-only → menu tidak muncul.
+    const canManageSchedule = can('matches.manage');
+    let targets = TRANSITIONS[cur] ?? [];
+    if (!canManageSchedule) {
+        if (!canScore.value) return [];
+        targets = targets.filter(s => ['ongoing', 'finished'].includes(s));
+    }
+    return targets.map(s => ({
         label: `${statusEmoji(s)} ${statusLabel(s)}`,
         onClick: () => openConfirm(s),
     }));
@@ -953,6 +1099,17 @@ function medalColor(m: string) {
 .jersey        { width: 26px; height: 26px; border-radius: 6px; background: var(--color-accent-subtle); color: var(--color-accent); font-size: 12px; font-weight: 700; font-family: var(--font-mono); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .athlete-name  { flex: 1; font-size: 13px; font-weight: 500; text-transform: capitalize; }
 .athlete-gender { font-size: 11px; color: var(--color-text-muted); }
+.lineup-add    { text-transform: none; }
+.lineup-del    { display: inline-flex; align-items: center; justify-content: center; padding: 4px; border: none; background: transparent; color: var(--color-text-subtle); border-radius: 6px; cursor: pointer; transition: color .12s, background .12s; }
+.lineup-del:hover:not(:disabled) { color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 10%, transparent); }
+.lineup-del:disabled { opacity: .5; cursor: default; }
+
+/* Modal tambah atlet */
+.add-lineup        { display: flex; flex-direction: column; gap: 14px; }
+.add-lineup__empty { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; margin: 0; }
+.add-lineup__jersey { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--color-text-primary); }
+.add-lineup__jersey input { padding: 9px 12px; border: 1px solid var(--color-border); border-radius: 8px; font-size: 13px; font-family: var(--font-sans); background: var(--color-bg); color: var(--color-text-primary); }
+.add-lineup__jersey input:focus { outline: none; border-color: var(--color-accent); }
 
 /* Juri */
 .judge-list    { display: flex; flex-direction: column; gap: 4px; padding-top: 4px; }

@@ -113,7 +113,26 @@ export function useAuth() {
         loading: computed(() => state.loading),
         isAuthenticated: computed(() => !!state.token),
         isSuperAdmin: computed(() => !!state.user?.roles?.includes('super_admin')),
+        /** Daftar role & permission user aktif (reaktif). */
+        roles: computed(() => state.user?.roles ?? []),
+        permissions: computed(() => state.user?.permissions ?? []),
+        /** kontingen_id user (untuk scoping admin_kontingen di FE). */
+        kontingenId: computed(() => state.user?.kontingen_id ?? null),
         hasRole: (role: string) => !!state.user?.roles?.includes(role),
+        /** true jika user punya salah satu dari role yang diminta. */
+        hasAnyRole: (roles: string[]) =>
+            !!state.user?.roles?.some((r) => roles.includes(r)),
+        /**
+         * Cek izin. super_admin selalu lolos (cermin guard backend
+         * CheckPermission yang mem-bypass super_admin).
+         */
+        can: (permission: string) =>
+            !!state.user?.roles?.includes('super_admin') ||
+            !!state.user?.permissions?.includes(permission),
+        /** true jika user punya salah satu dari permission yang diminta. */
+        canAny: (permissions: string[]) =>
+            !!state.user?.roles?.includes('super_admin') ||
+            !!state.user?.permissions?.some((p) => permissions.includes(p)),
         login,
         logout,
         fetchMe,

@@ -18,7 +18,7 @@
                         <span class="venue-hero-card__count">{{ matches.length }} jadwal</span>
                     </div>
                 </div>
-                <div class="hero-actions">
+                <div v-if="can('venues.manage')" class="hero-actions">
                     <button type="button" class="edit-btn" @click="$inertia.visit(`/venues/${encodeId(realId)}/edit`)">
                         <Pencil :size="15" /><span>Edit</span>
                     </button>
@@ -74,7 +74,7 @@
                     </div>
                     <div v-else class="sc-noresult">Tidak ada sub-cabor cocok dengan "{{ scQuery }}".</div>
 
-                    <AppButton variant="primary" size="sm" class="mt-3" :loading="savingSc" @click="saveSubCabor">Simpan Perubahan</AppButton>
+                    <AppButton v-if="can('venues.manage')" variant="primary" size="sm" class="mt-3" :loading="savingSc" @click="saveSubCabor">Simpan Perubahan</AppButton>
                 </template>
 
                 <!-- Jadwal -->
@@ -100,7 +100,7 @@
                         <p class="jadwal-empty__text">
                             Venue <strong>{{ venue?.name }}</strong> belum memiliki jadwal pertandingan. Tambahkan jadwal untuk mulai mengatur waktu dan sub-cabor.
                         </p>
-                        <AppButton variant="primary" size="sm" @click="$inertia.visit(`/matches/create?venue_id=${realId}`)">
+                        <AppButton v-if="can('matches.manage')" variant="primary" size="sm" @click="$inertia.visit(`/matches/create?venue_id=${realId}`)">
                             + Tambah Jadwal
                         </AppButton>
                     </div>
@@ -132,6 +132,8 @@ import api            from '@/lib/axios';
 import { decodeId, encodeId } from '@/lib/hashid';
 import { useNotFound } from '@/Composables/useNotFound';
 import { useToast }   from '@/Composables/useToast';
+import { usePageGuard } from '@/Composables/usePageGuard';
+import { useAuth }    from '@/Composables/useAuth';
 import SimporaLayout  from '@/Layouts/SimporaLayout.vue';
 import AppButton      from '@/Components/App/AppButton.vue';
 import AppBadge       from '@/Components/App/AppBadge.vue';
@@ -142,6 +144,8 @@ interface Props { id: string | number }
 const props = defineProps<Props>();
 const { notFound } = useNotFound();
 const toast = useToast();
+usePageGuard({ anyRole: ['super_admin', 'panitia_besar', 'admin_venue'] });
+const { can } = useAuth();
 const realId = decodeId(props.id);
 
 const activeTab     = ref('info');

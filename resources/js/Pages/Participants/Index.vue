@@ -6,7 +6,7 @@
                     <h1 class="page-title">Peserta</h1>
                     <p class="page-subtitle">{{ total }} peserta PORA XV Aceh Jaya 2026</p>
                 </div>
-                <AppButton variant="primary" size="md" @click="$inertia.visit('/participants/create')">
+                <AppButton v-if="can('participants.create')" variant="primary" size="md" @click="$inertia.visit('/participants/create')">
                     + Daftarkan Peserta
                 </AppButton>
             </div>
@@ -24,6 +24,12 @@
                         <option value="official">Official</option>
                         <option value="manager">Manajer</option>
                     </select>
+                    <select v-model="filterBerkas" class="filter-select" title="Saring berdasarkan kelengkapan berkas">
+                        <option value="">Semua Berkas</option>
+                        <option value="incomplete">Perlu Dilengkapi</option>
+                        <option value="complete">Berkas Lengkap</option>
+                        <option value="approved">Terverifikasi</option>
+                    </select>
                 </div>
 
                 <div class="table-wrap">
@@ -35,6 +41,7 @@
                                 <th class="dt-th">Role</th>
                                 <th class="dt-th">Kontingen</th>
                                 <th class="dt-th">Cabor</th>
+                                <th class="dt-th">Berkas</th>
                                 <th class="dt-th">Status</th>
                                 <th class="dt-th dt-th--actions">Aksi</th>
                             </tr>
@@ -42,11 +49,11 @@
                         <tbody>
                             <template v-if="loading">
                                 <tr v-for="i in 6" :key="`sk-${i}`" class="dt-row">
-                                    <td class="dt-td" v-for="c in 7" :key="c"><span class="sk-bar" /></td>
+                                    <td class="dt-td" v-for="c in 8" :key="c"><span class="sk-bar" /></td>
                                 </tr>
                             </template>
                             <template v-else>
-                            <tr v-for="g in groupedParticipants" :key="g.key" class="dt-row">
+                            <tr v-for="g in filteredGroups" :key="g.key" class="dt-row">
                                 <td class="dt-td">
                                     <div class="name-cell">
                                         <AppAvatar :user="{ name: g.person?.nama_lengkap ?? '' }" size="sm" />
@@ -76,6 +83,9 @@
                                     <span v-else>—</span>
                                 </td>
                                 <td class="dt-td">
+                                    <AppBadge :color="berkasColor(g)" size="sm">{{ berkasLabel(g) }}</AppBadge>
+                                </td>
+                                <td class="dt-td">
                                     <AppBadge :color="g.is_active ? 'success' : 'default'" size="sm">
                                         {{ g.is_active ? 'Aktif' : 'Nonaktif' }}
                                     </AppBadge>
@@ -83,7 +93,7 @@
                                 <td class="dt-td dt-td--actions">
                                     <div class="action-btns">
                                         <AppButton size="xs" variant="ghost" @click="$inertia.visit(`/participants/${encodeId(g.id)}`)"><Eye :size="14" /></AppButton>
-                                        <AppButton size="xs" variant="ghost" @click="$inertia.visit(`/participants/${encodeId(g.id)}/edit`)"><Pencil :size="14" /></AppButton>
+                                        <AppButton v-if="can('participants.update')" size="xs" variant="ghost" @click="$inertia.visit(`/participants/${encodeId(g.id)}/edit`)"><Pencil :size="14" /></AppButton>
                                     </div>
                                 </td>
                             </tr>
@@ -96,12 +106,14 @@
 
                 <div class="table-footer">
                     <AppPagination
+                        v-if="!filterBerkas"
                         :model-value="page"
                         :total="total"
                         :per-page="perPage"
                         @update:model-value="goToPage"
                         @update:per-page="changePerPage"
                     />
+                    <span v-else class="table-info">Menampilkan {{ filteredGroups.length }} peserta · filter berkas aktif</span>
                 </div>
             </AppCard>
         </div>
@@ -113,6 +125,8 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { Search, Eye, Pencil } from '@lucide/vue';
 import api           from '@/lib/axios';
 import { encodeId }  from '@/lib/hashid';
+import { useAuth }   from '@/Composables/useAuth';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import SimporaLayout from '@/Layouts/SimporaLayout.vue';
 import AppButton     from '@/Components/App/AppButton.vue';
 import AppCard       from '@/Components/App/AppCard.vue';
@@ -121,8 +135,12 @@ import AppAvatar     from '@/Components/App/AppAvatar.vue';
 import AppEmptyState from '@/Components/App/AppEmptyState.vue';
 import AppPagination from '@/Components/App/AppPagination.vue';
 
+usePageGuard({ anyRole: ['super_admin', 'panitia_besar', 'admin_kontingen'] });
+const { can } = useAuth();
+
 const search       = ref('');
 const filterRole   = ref('');
+const filterBerkas = ref('');   // '' | incomplete | complete | approved (§4)
 const participants = ref<any[]>([]);
 const total        = ref(0);
 const page         = ref(1);
@@ -147,12 +165,14 @@ async function fetchParticipants() {
     loading.value = true;
     error.value   = '';
     try {
+        // Saat filter berkas aktif, ambil lebih banyak (filter §4 dilakukan klien
+        // karena kelengkapan bergantung peran → tak ada query-param server).
         const res = await api.get('/api/v1/participants', {
             params: {
                 search: search.value || undefined,
                 role:   filterRole.value || undefined,
-                page:   page.value,
-                per_page: perPage.value,
+                page:   filterBerkas.value ? 1 : page.value,
+                per_page: filterBerkas.value ? 500 : perPage.value,
             },
         });
         const raw = res.data?.data;
@@ -174,18 +194,32 @@ const groupedParticipants = computed(() => {
         const key = `${p.person_id}-${p.contingent_id}`;
         let g = map.get(key);
         if (!g) {
-            g = { key, id: p.id, person: p.person, contingent: p.contingent, roles: [] as string[], sports: [] as string[], is_active: p.is_active };
+            g = { key, id: p.id, person: p.person, contingent: p.contingent, roles: [] as string[], sports: [] as string[], is_active: p.is_active, complete: true, approved: true };
             map.set(key, g);
         }
         if (p.role && !g.roles.includes(p.role)) g.roles.push(p.role);
         if (p.sport?.name && !g.sports.includes(p.sport.name)) g.sports.push(p.sport.name);
         g.is_active = g.is_active || p.is_active;
+        // Kelengkapan agregat: lengkap/approved hanya jika SEMUA baris peran orang ini begitu.
+        g.complete = g.complete && !!p.documents_complete;
+        g.approved = g.approved && !!p.documents_approved;
     }
     return [...map.values()];
 });
 
+// Filter §4 (klien) — pisahkan berkas lengkap vs perlu dilengkapi.
+const filteredGroups = computed(() => {
+    if (!filterBerkas.value) return groupedParticipants.value;
+    return groupedParticipants.value.filter(g => {
+        if (filterBerkas.value === 'approved')   return g.approved;
+        if (filterBerkas.value === 'complete')   return g.complete;
+        if (filterBerkas.value === 'incomplete') return !g.complete;
+        return true;
+    });
+});
+
 let debounce: ReturnType<typeof setTimeout>;
-watch([search, filterRole], () => {
+watch([search, filterRole, filterBerkas], () => {
     clearTimeout(debounce);
     debounce = setTimeout(() => { page.value = 1; fetchParticipants(); }, 350);
 });
@@ -211,6 +245,16 @@ function roleColor(r: string) {
 function roleLabel(r: string) {
     const m: Record<string, string> = { athlete: 'Atlet', coach: 'Pelatih', official: 'Official', manager: 'Manajer' };
     return m[r] ?? r;
+}
+function berkasColor(g: any): 'success' | 'info' | 'warning' {
+    if (g.approved) return 'success';
+    if (g.complete) return 'info';
+    return 'warning';
+}
+function berkasLabel(g: any): string {
+    if (g.approved) return 'Terverifikasi';
+    if (g.complete) return 'Lengkap';
+    return 'Perlu Dilengkapi';
 }
 </script>
 

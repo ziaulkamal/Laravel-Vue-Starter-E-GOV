@@ -19,7 +19,7 @@
                         <AppBadge v-if="category && !category.is_active" color="default" size="sm">Nonaktif</AppBadge>
                     </div>
                 </div>
-                <button v-if="category" type="button" class="edit-btn" @click="$inertia.visit(`/sport-categories/${encodeId(category.id)}/edit`)">
+                <button v-if="category && can('sports.manage')" type="button" class="edit-btn" @click="$inertia.visit(`/sport-categories/${encodeId(category.id)}/edit`)">
                     <Pencil :size="15" /><span>Edit</span>
                 </button>
             </div>
@@ -124,6 +124,40 @@
                     </div>
                 </template>
 
+                <!-- ── Pendaftaran ──────────────────────────────────────── -->
+                <template #pendaftaran>
+                    <div class="reg-head">
+                        <div class="reg-status">
+                            <AppBadge :color="category?.registration_open ? 'success' : 'default'" size="sm">
+                                {{ category?.registration_open ? 'Pendaftaran Dibuka' : 'Pendaftaran Ditutup' }}
+                            </AppBadge>
+                            <span v-if="category?.registration_open && category?.registration_deadline" class="reg-deadline">
+                                s/d {{ formatDate(category.registration_deadline) }}
+                            </span>
+                        </div>
+                        <div class="reg-actions">
+                            <AppToggle v-if="canManageReg" :model-value="!!category?.registration_open" label="Buka pendaftaran" :disabled="togglingReg" @update:model-value="toggleReg" />
+                            <AppButton v-if="canRegister" size="sm" variant="primary" @click="openRegModal">+ Daftarkan Atlet</AppButton>
+                        </div>
+                    </div>
+
+                    <div v-if="loadingReg" class="state-box"><span class="sk-bar lg" /></div>
+                    <div v-else-if="!registered.length" class="state-box">
+                        <Users :size="26" class="state-icon" />
+                        <div class="state-title">Belum ada atlet terdaftar</div>
+                        <p class="state-text">Gunakan tombol "Daftarkan Atlet" untuk mendaftarkan atlet ke sub-cabor ini.</p>
+                    </div>
+                    <div v-else class="reg-list">
+                        <div v-for="p in registered" :key="p.id" class="reg-item">
+                            <AppAvatar :user="{ name: p.person?.nama_lengkap ?? '' }" size="sm" />
+                            <div class="reg-item__info">
+                                <span class="reg-item__name">{{ p.person?.nama_lengkap ?? '—' }}</span>
+                                <span class="reg-item__sub">{{ p.contingent?.name ?? '—' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
                 <!-- ── Info ─────────────────────────────────────────────── -->
                 <template #info>
                     <div class="info-grid">
@@ -135,30 +169,73 @@
                         <div class="info-item"><span class="info-k">Penilaian</span><span class="info-v">{{ scoringLabel(category?.scoring_type) }}</span></div>
                         <div class="info-item"><span class="info-k">Best of 3</span><span class="info-v">{{ category?.uses_bo3 ? 'Ya' : 'Tidak' }}</span></div>
                         <div class="info-item"><span class="info-k">Status</span><span class="info-v">{{ category?.is_active ? 'Aktif' : 'Nonaktif' }}</span></div>
+                        <div class="info-item"><span class="info-k">Pendaftaran</span><span class="info-v">{{ category?.registration_open ? 'Dibuka' : 'Ditutup' }}</span></div>
                     </div>
                 </template>
             </AppTabs>
         </div>
+
+        <!-- ─── Modal Daftarkan Atlet (multi-select, bulk) ─────────── -->
+        <AppModal v-model="showReg" title="Daftarkan Atlet ke Sub-Cabor" size="md">
+            <div class="rm-body">
+                <p class="rm-hint">Pilih atlet untuk didaftarkan ke <strong>{{ category?.name }}</strong>. Atlet yang berkasnya belum lengkap atau tidak memenuhi syarat akan dilewati otomatis.</p>
+                <div class="filter-search">
+                    <Search :size="14" class="filter-search__icon" />
+                    <input v-model="athleteSearch" class="filter-search__input" placeholder="Cari nama atau NIK atlet..." />
+                </div>
+                <div class="rm-list">
+                    <div v-if="loadingAthletes" class="rm-loading"><span class="sk-bar" /><span class="sk-bar" /></div>
+                    <template v-else-if="eligibleAthletes.length">
+                        <label v-for="a in eligibleAthletes" :key="a.id" class="rm-item">
+                            <input type="checkbox" :value="a.id" :checked="selectedIds.has(a.id)" @change="toggleSelect(a.id)" />
+                            <div class="rm-item__info">
+                                <span class="rm-item__name">{{ a.person?.nama_lengkap ?? '—' }}</span>
+                                <span class="rm-item__sub">{{ a.contingent?.name ?? '—' }}
+                                    <AppBadge v-if="!a.documents_complete" color="warning" size="sm">Berkas belum lengkap</AppBadge>
+                                </span>
+                            </div>
+                        </label>
+                    </template>
+                    <div v-else class="rm-empty">Tidak ada atlet yang cocok.</div>
+                </div>
+            </div>
+            <template #footer>
+                <AppButton variant="secondary" @click="showReg = false">Batal</AppButton>
+                <AppButton variant="primary" :loading="registering" :disabled="!selectedIds.size" @click="submitReg">
+                    Daftarkan ({{ selectedIds.size }})
+                </AppButton>
+            </template>
+        </AppModal>
     </SimporaLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { Pencil, Trophy, GitFork } from '@lucide/vue';
+import { Pencil, Trophy, GitFork, Users, Search } from '@lucide/vue';
 import api from '@/lib/axios';
 import { encodeId, decodeId } from '@/lib/hashid';
 import { useNotFound } from '@/Composables/useNotFound';
+import { useToast } from '@/Composables/useToast';
+import { useAuth } from '@/Composables/useAuth';
 import SimporaLayout from '@/Layouts/SimporaLayout.vue';
 import AppBreadcrumb from '@/Components/App/AppBreadcrumb.vue';
 import AppBadge from '@/Components/App/AppBadge.vue';
 import AppButton from '@/Components/App/AppButton.vue';
 import AppTabs from '@/Components/App/AppTabs.vue';
+import AppModal from '@/Components/App/AppModal.vue';
+import AppToggle from '@/Components/App/AppToggle.vue';
+import AppAvatar from '@/Components/App/AppAvatar.vue';
 import ContingentLogo from '@/Components/App/ContingentLogo.vue';
 
 interface Props { id: string | number }
 const props = defineProps<Props>();
 const { notFound } = useNotFound();
+const toast = useToast();
+const { isSuperAdmin, hasRole, can } = useAuth();
 const realId = decodeId(props.id);
+
+const canManageReg = computed(() => isSuperAdmin.value || hasRole('panitia_besar'));
+const canRegister  = computed(() => isSuperAdmin.value || hasRole('admin_kontingen'));
 
 const category = ref<any>(null);
 const qualify = 2;
@@ -171,6 +248,7 @@ const tabs = computed(() => {
     const t: { value: string; label: string }[] = [];
     if (hasGroup.value)    t.push({ value: 'klasemen', label: 'Klasemen' });
     if (hasKnockout.value) t.push({ value: 'bagan', label: 'Bagan' });
+    t.push({ value: 'pendaftaran', label: 'Pendaftaran' });
     t.push({ value: 'info', label: 'Info' });
     return t;
 });
@@ -210,12 +288,99 @@ async function fetchBracket() {
     }
 }
 
+// ── Pendaftaran (registrasi sub-cabor) ─────────────────────────
+const registered    = ref<any[]>([]);
+const loadingReg     = ref(false);
+const togglingReg    = ref(false);
+
+async function fetchRegistered() {
+    loadingReg.value = true;
+    try {
+        const res = await api.get('/api/v1/participants', {
+            params: { sport_category_id: realId, registration_status: 'all', per_page: 200 },
+        });
+        const raw  = res.data?.data;
+        const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+        registered.value = list.filter(Boolean);
+    } catch { registered.value = []; }
+    finally { loadingReg.value = false; }
+}
+
+async function toggleReg(open: boolean) {
+    togglingReg.value = true;
+    try {
+        await api.put(`/api/v1/sport-categories/${realId}`, { registration_open: open });
+        if (category.value) category.value.registration_open = open;
+        toast.success(open ? 'Pendaftaran dibuka' : 'Pendaftaran ditutup');
+    } catch (e: any) {
+        toast.error(e?.response?.data?.message ?? 'Gagal mengubah status pendaftaran');
+    } finally { togglingReg.value = false; }
+}
+
+// ── Modal daftarkan atlet (multi-select bulk) ──────────────────
+const showReg          = ref(false);
+const athleteSearch    = ref('');
+const eligibleAthletes = ref<any[]>([]);
+const loadingAthletes  = ref(false);
+const selectedIds      = ref<Set<number>>(new Set());
+const registering      = ref(false);
+
+function openRegModal() {
+    selectedIds.value = new Set();
+    athleteSearch.value = '';
+    showReg.value = true;
+    fetchAthletes();
+}
+function toggleSelect(id: number) {
+    const next = new Set(selectedIds.value);
+    next.has(id) ? next.delete(id) : next.add(id);
+    selectedIds.value = next;
+}
+async function fetchAthletes() {
+    loadingAthletes.value = true;
+    try {
+        const res = await api.get('/api/v1/participants', {
+            params: { role: 'athlete', search: athleteSearch.value || undefined, per_page: 50 },
+        });
+        const raw  = res.data?.data;
+        const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+        const registeredIds = new Set(registered.value.map((p: any) => p.id));
+        eligibleAthletes.value = list.filter(Boolean).filter((a: any) => !registeredIds.has(a.id));
+    } catch { eligibleAthletes.value = []; }
+    finally { loadingAthletes.value = false; }
+}
+let athleteDebounce: ReturnType<typeof setTimeout>;
+watch(athleteSearch, () => {
+    clearTimeout(athleteDebounce);
+    athleteDebounce = setTimeout(fetchAthletes, 350);
+});
+
+async function submitReg() {
+    if (!selectedIds.value.size) return;
+    registering.value = true;
+    try {
+        const res = await api.post(`/api/v1/sport-categories/${realId}/registrations`, {
+            participant_ids: [...selectedIds.value],
+        });
+        const created = res.data?.data?.created?.length ?? 0;
+        const skipped = res.data?.data?.skipped ?? [];
+        if (created > 0) toast.success(`${created} atlet berhasil didaftarkan`);
+        if (skipped.length) toast.error(`${skipped.length} dilewati: ${skipped[0]?.reason ?? ''}`);
+        showReg.value = false;
+        await fetchRegistered();
+    } catch (e: any) {
+        toast.error(e?.response?.data?.message ?? 'Gagal mendaftarkan atlet');
+    } finally { registering.value = false; }
+}
+
 // Lazy-load isi tab saat pertama dibuka
 const loadedStandings = ref(false);
 const loadedBracket = ref(false);
+const loadedReg = ref(false);
 watch(activeTab, (t) => {
     if (t === 'klasemen' && !loadedStandings.value) { loadedStandings.value = true; fetchStandings(); }
     if (t === 'bagan'    && !loadedBracket.value)   { loadedBracket.value = true; fetchBracket(); }
+    if (t === 'pendaftaran' && !loadedReg.value)    { loadedReg.value = true; fetchRegistered(); }
 });
 
 async function fetchCategory() {
@@ -246,6 +411,11 @@ function formatLabel(f?: string) { return ({ final_only: 'Final Saja', eliminati
 function scoringLabel(s?: string) { return ({ score: 'Skor', time: 'Waktu', distance: 'Jarak', point: 'Poin', rank: 'Peringkat' } as Record<string, string>)[s ?? ''] ?? (s ?? '—'); }
 function statusColor(s: string) { return ({ scheduled: 'info', ongoing: 'warning', finished: 'success', postponed: 'default', cancelled: 'danger' } as Record<string, any>)[s] ?? 'default'; }
 function statusLabel(s: string) { return ({ scheduled: 'Terjadwal', ongoing: 'Berlangsung', finished: 'Selesai', postponed: 'Ditunda', cancelled: 'Batal' } as Record<string, string>)[s] ?? s; }
+function formatDate(d?: string) {
+    if (!d) return '—';
+    const date = new Date(d);
+    return isNaN(date.getTime()) ? '—' : date.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+}
 </script>
 
 <style scoped>
@@ -302,6 +472,34 @@ function statusLabel(s: string) { return ({ scheduled: 'Terjadwal', ongoing: 'Be
 .info-item { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-bg-card, var(--color-bg-subtle)); }
 .info-k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-subtle); }
 .info-v { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
+
+/* Pendaftaran */
+.reg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.reg-status { display: flex; align-items: center; gap: 10px; }
+.reg-deadline { font-size: 12px; color: var(--color-text-muted); }
+.reg-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.reg-list { display: flex; flex-direction: column; gap: 2px; }
+.reg-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-border); }
+.reg-item:last-child { border-bottom: none; }
+.reg-item__info { display: flex; flex-direction: column; gap: 1px; }
+.reg-item__name { font-size: 13.5px; font-weight: 500; color: var(--color-text-primary); text-transform: capitalize; }
+.reg-item__sub { font-size: 11.5px; color: var(--color-text-muted); display: flex; align-items: center; gap: 6px; }
+
+/* Modal daftarkan atlet */
+.rm-body { display: flex; flex-direction: column; gap: 12px; }
+.rm-hint { font-size: 12.5px; color: var(--color-text-muted); margin: 0; line-height: 1.5; }
+.filter-search { display: flex; align-items: center; gap: 7px; border: 1.5px solid var(--color-border); border-radius: 8px; padding: 8px 11px; background: var(--color-bg-subtle); }
+.filter-search__icon { color: var(--color-text-subtle); flex-shrink: 0; }
+.filter-search__input { flex: 1; border: none; background: transparent; outline: none; font-size: 13px; color: var(--color-text-primary); font-family: var(--font-sans); }
+.rm-list { max-height: 320px; overflow-y: auto; border: 1.5px solid var(--color-border); border-radius: 10px; }
+.rm-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--color-border); cursor: pointer; }
+.rm-item:last-child { border-bottom: none; }
+.rm-item:hover { background: var(--color-bg-subtle); }
+.rm-item__info { display: flex; flex-direction: column; gap: 1px; }
+.rm-item__name { font-size: 13px; font-weight: 500; color: var(--color-text-primary); text-transform: capitalize; }
+.rm-item__sub { font-size: 11.5px; color: var(--color-text-muted); display: flex; align-items: center; gap: 6px; }
+.rm-loading { display: flex; flex-direction: column; gap: 8px; padding: 14px; }
+.rm-empty { padding: 24px; text-align: center; font-size: 12.5px; color: var(--color-text-subtle); }
 
 /* States */
 .state-box { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 48px 24px; text-align: center; border: 1px dashed var(--color-border); border-radius: 16px; background: var(--color-bg-subtle); }

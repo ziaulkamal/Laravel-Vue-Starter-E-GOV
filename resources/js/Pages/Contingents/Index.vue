@@ -6,7 +6,7 @@
                     <h1 class="page-title">Kontingen</h1>
                     <p class="page-subtitle">{{ total }} kontingen PORA XV Aceh Jaya 2026</p>
                 </div>
-                <AppButton variant="primary" size="md" @click="$inertia.visit('/contingents/create')">+ Tambah Kontingen</AppButton>
+                <AppButton v-if="can('contingents.create')" variant="primary" size="md" @click="$inertia.visit('/contingents/create')">+ Tambah Kontingen</AppButton>
             </div>
 
             <!-- Filter -->
@@ -81,11 +81,16 @@ import AppCard       from '@/Components/App/AppCard.vue';
 import AppBadge      from '@/Components/App/AppBadge.vue';
 import AppEmptyState from '@/Components/App/AppEmptyState.vue';
 import ContingentLogo from '@/Components/App/ContingentLogo.vue';
+import { useAuth } from '@/Composables/useAuth';
+import { usePageGuard } from '@/Composables/usePageGuard';
 
 interface Contingent {
     id: number; name: string; short_name: string; wilayah_kode?: string | null;
     is_active: boolean; wilayah?: { kode: string; nama: string } | null;
 }
+
+usePageGuard({ permission: 'contingents.view' });
+const { can } = useAuth();
 
 const search       = ref('');
 const filterStatus = ref('');

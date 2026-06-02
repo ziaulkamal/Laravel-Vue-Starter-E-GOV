@@ -4,7 +4,7 @@
             <AppBreadcrumb :items="[{ label: 'Cabor', href: '/sports' }, { label: sport?.name ?? 'Detail' }]" />
 
             <div class="sport-hero-card">
-                <span class="sport-badge">{{ sport?.code ?? '—' }}</span>
+                <SportMascot :icon="sport?.icon" :code="sport?.code ?? '—'" :name="sport?.name" :size="54" :radius="14" class="sport-badge" />
                 <div class="sport-hero-card__info">
                     <h1 class="page-title">{{ sport?.name ?? 'Memuat...' }}</h1>
                     <div class="sport-hero-card__meta">
@@ -15,7 +15,7 @@
                         <span class="sport-hero-card__count">{{ categories.length }} sub-cabor</span>
                     </div>
                 </div>
-                <div class="hero-actions">
+                <div v-if="isSuperAdmin" class="hero-actions">
                     <button type="button" class="edit-btn" @click="sport && $inertia.visit(`/sports/${encodeId(sport.id)}/edit`)">
                         <Pencil :size="15" />
                         <span>Edit</span>
@@ -47,7 +47,7 @@
                                 <template #icon><Trash2 :size="14" /></template>
                                 Hapus Semua
                             </AppButton>
-                            <AppButton variant="primary" size="sm" @click="$inertia.visit('/sport-categories/create')">
+                            <AppButton v-if="can('sports.manage')" variant="primary" size="sm" @click="$inertia.visit('/sport-categories/create')">
                                 + Tambah Sub-Cabor
                             </AppButton>
                         </div>
@@ -57,7 +57,7 @@
                         <div class="subcabor-empty__icon"><Layers :size="26" /></div>
                         <div class="subcabor-empty__title">Belum ada sub-cabor</div>
                         <p class="subcabor-empty__text">Cabor <strong>{{ sport?.name }}</strong> belum memiliki sub-cabor. Tambahkan untuk mulai mengelola nomor pertandingan.</p>
-                        <AppButton variant="primary" size="sm" @click="$inertia.visit('/sport-categories/create')">
+                        <AppButton v-if="can('sports.manage')" variant="primary" size="sm" @click="$inertia.visit('/sport-categories/create')">
                             + Tambah Sub-Cabor
                         </AppButton>
                     </div>
@@ -144,12 +144,13 @@ import AppBadge       from '@/Components/App/AppBadge.vue';
 import AppBreadcrumb  from '@/Components/App/AppBreadcrumb.vue';
 import AppTabs        from '@/Components/App/AppTabs.vue';
 import AppModal       from '@/Components/App/AppModal.vue';
+import SportMascot    from '@/Components/App/SportMascot.vue';
 
 interface Props { id: string | number }
 const props = defineProps<Props>();
 const { notFound } = useNotFound();
 const toast = useToast();
-const { isSuperAdmin } = useAuth();
+const { isSuperAdmin, can } = useAuth();
 const realId = decodeId(props.id);
 
 const activeTab  = ref('subcabor');

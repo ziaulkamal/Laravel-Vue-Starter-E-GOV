@@ -6,7 +6,7 @@
                     <h1 class="page-title">Cabang Olahraga</h1>
                     <p class="page-subtitle">Kelola cabor dan sub-cabor PORA XV</p>
                 </div>
-                <AppButton variant="primary" size="md" @click="$inertia.visit('/sports/create')">+ Tambah Cabor</AppButton>
+                <AppButton v-if="isSuperAdmin" variant="primary" size="md" @click="$inertia.visit('/sports/create')">+ Tambah Cabor</AppButton>
             </div>
 
             <!-- Loading -->
@@ -28,7 +28,7 @@
                     class="sport-card"
                     @click="$inertia.visit(`/sports/${encodeId(sport.id)}`)"
                 >
-                    <div class="sport-card__badge">{{ sport.code }}</div>
+                    <SportMascot :icon="sport.icon" :code="sport.code" :name="sport.name" :size="52" :radius="14" class="sport-card__badge" />
                     <div class="sport-card__body">
                         <div class="sport-card__name">{{ sport.name }}</div>
                         <AppBadge :color="sport.is_active ? 'success' : 'default'" size="sm">
@@ -57,8 +57,14 @@ import SimporaLayout from '@/Layouts/SimporaLayout.vue';
 import AppButton     from '@/Components/App/AppButton.vue';
 import AppBadge      from '@/Components/App/AppBadge.vue';
 import AppEmptyState from '@/Components/App/AppEmptyState.vue';
+import SportMascot   from '@/Components/App/SportMascot.vue';
+import { useAuth } from '@/Composables/useAuth';
+import { usePageGuard } from '@/Composables/usePageGuard';
 
-interface Sport { id: number; name: string; code: string; is_active: boolean }
+interface Sport { id: number; name: string; code: string; is_active: boolean; icon?: string | null }
+
+usePageGuard({ permission: 'sports.view' });
+const { isSuperAdmin } = useAuth();
 
 const sports  = ref<Sport[]>([]);
 const loading = ref(false);

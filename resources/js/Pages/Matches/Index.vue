@@ -6,7 +6,7 @@
                     <h1 class="page-title">Jadwal Pertandingan</h1>
                     <p class="page-subtitle">Kelola jadwal pertandingan PORA XV</p>
                 </div>
-                <AppButton variant="primary" size="md" @click="$inertia.visit('/matches/create')">+ Buat Jadwal</AppButton>
+                <AppButton v-if="can('matches.manage')" variant="primary" size="md" @click="$inertia.visit('/matches/create')">+ Buat Jadwal</AppButton>
             </div>
 
             <AppCard padding="none">
@@ -70,7 +70,7 @@
                                 <td class="dt-td dt-td--actions">
                                     <div class="action-btns">
                                         <AppButton size="xs" variant="ghost" @click="$inertia.visit(`/matches/${encodeId(m.id)}`)"><Eye :size="14" /></AppButton>
-                                        <AppButton v-if="['scheduled','postponed'].includes(m.status)" size="xs" variant="ghost" @click="$inertia.visit(`/matches/${encodeId(m.id)}/edit`)"><Pencil :size="14" /></AppButton>
+                                        <AppButton v-if="can('matches.manage') && ['scheduled','postponed'].includes(m.status)" size="xs" variant="ghost" @click="$inertia.visit(`/matches/${encodeId(m.id)}/edit`)"><Pencil :size="14" /></AppButton>
                                     </div>
                                 </td>
                             </tr>
@@ -97,6 +97,11 @@ import AppBadge      from '@/Components/App/AppBadge.vue';
 import ContingentLogo from '@/Components/App/ContingentLogo.vue';
 import AppEmptyState from '@/Components/App/AppEmptyState.vue';
 import AppDatePicker from '@/Components/App/AppDatePicker.vue';
+import { useAuth } from '@/Composables/useAuth';
+import { usePageGuard } from '@/Composables/usePageGuard';
+
+usePageGuard({ permission: 'matches.view' });
+const { can } = useAuth();
 
 const search       = ref('');
 const filterStatus = ref('');

@@ -283,7 +283,9 @@ import AppModal      from '@/Components/App/AppModal.vue';
 import AppTextarea   from '@/Components/App/AppTextarea.vue';
 import AppEmptyState from '@/Components/App/AppEmptyState.vue';
 import AppPagination from '@/Components/App/AppPagination.vue';
+import { usePageGuard } from '@/Composables/usePageGuard';
 
+usePageGuard({ permission: 'documents.verify' });
 const toast = useToast();
 
 // ── Filter state ────────────────────────────────────────────────

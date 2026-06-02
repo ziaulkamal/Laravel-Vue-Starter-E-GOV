@@ -148,6 +148,7 @@ import api             from '@/lib/axios';
 import { encodeId, decodeId } from '@/lib/hashid';
 import { useToast }    from '@/Composables/useToast';
 import { useNotFound } from '@/Composables/useNotFound';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import SimporaLayout   from '@/Layouts/SimporaLayout.vue';
 import AppCard         from '@/Components/App/AppCard.vue';
 import AppButton       from '@/Components/App/AppButton.vue';
@@ -159,6 +160,7 @@ import AppBreadcrumb   from '@/Components/App/AppBreadcrumb.vue';
 import AppMapPicker    from '@/Components/App/AppMapPicker.vue';
 
 interface Props { id?: string | number }
+usePageGuard({ anyRole: ['super_admin', 'panitia_besar', 'admin_venue'] });
 const props  = defineProps<Props>();
 const isEdit = computed(() => !!props.id);
 const realId = computed(() => (props.id != null ? decodeId(props.id) : null));

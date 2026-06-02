@@ -33,6 +33,14 @@ Route::get('/participants/{id}/edit',fn ($id) => Inertia::render('Participants/E
 // ── Dokumen ───────────────────────────────────────────────────
 Route::get('/documents/review', fn () => Inertia::render('Documents/Review'))->name('documents.review');
 
+// ── Jenis Berkas (Master config kelengkapan berkas) ──────────
+Route::get('/document-types',          fn () => Inertia::render('DocumentTypes/Index'))->name('document-types.index');
+Route::get('/document-types/create',   fn () => Inertia::render('DocumentTypes/Form'))->name('document-types.create');
+Route::get('/document-types/{id}/edit',fn ($id) => Inertia::render('DocumentTypes/Form', ['id' => $id]))->name('document-types.edit');
+
+// ── Peminjaman Atlet (atlet pinjaman dari daerah lain) ────────
+Route::get('/borrow-requests', fn () => Inertia::render('BorrowRequests/Index'))->name('borrow-requests.index');
+
 // ── Cabor ─────────────────────────────────────────────────────
 Route::get('/sports',          fn () => Inertia::render('Sports/Index'))->name('sports.index');
 Route::get('/sports/create',   fn () => Inertia::render('Sports/Form'))->name('sports.create');
@@ -85,6 +93,7 @@ Route::get('/profile',        fn () => Inertia::render('Profile/Index'))->name('
 Route::get('/dev/seeder', fn () => Inertia::render('Dev/Seeder'))->name('dev.seeder');
 
 // ── Error pages ───────────────────────────────────────────────
+Route::get('/403', fn () => Inertia::render('Error403'))->name('error.403');
 Route::get('/404', fn () => Inertia::render('Error404'))->name('error.404');
 Route::get('/500', fn () => Inertia::render('Error500'))->name('error.500');
 

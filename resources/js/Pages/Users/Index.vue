@@ -6,7 +6,7 @@
                     <h1 class="page-title">Manajemen User</h1>
                     <p class="page-subtitle">Kelola akun pengguna sistem SIMPORA</p>
                 </div>
-                <AppButton variant="primary" size="md" @click="$inertia.visit('/users/create')">+ Tambah User</AppButton>
+                <AppButton v-if="can('users.create')" variant="primary" size="md" @click="$inertia.visit('/users/create')">+ Tambah User</AppButton>
             </div>
 
             <AppCard padding="none">
@@ -59,8 +59,8 @@
                                     </td>
                                     <td class="dt-td dt-td--actions">
                                         <div class="action-btns">
-                                            <AppButton size="xs" variant="ghost" @click="$inertia.visit(`/users/${encodeId(u.id)}/edit`)"><Pencil :size="13" /></AppButton>
-                                            <AppButton size="xs" variant="ghost" @click="askDelete(u)"><Trash2 :size="13" /></AppButton>
+                                            <AppButton v-if="can('users.update')" size="xs" variant="ghost" @click="$inertia.visit(`/users/${encodeId(u.id)}/edit`)"><Pencil :size="13" /></AppButton>
+                                            <AppButton v-if="can('users.delete')" size="xs" variant="ghost" @click="askDelete(u)"><Trash2 :size="13" /></AppButton>
                                         </div>
                                     </td>
                                 </tr>
@@ -101,6 +101,8 @@ import { Search, Pencil, Trash2 } from '@lucide/vue';
 import api           from '@/lib/axios';
 import { encodeId }  from '@/lib/hashid';
 import { useToast }  from '@/Composables/useToast';
+import { useAuth }   from '@/Composables/useAuth';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import SimporaLayout from '@/Layouts/SimporaLayout.vue';
 import AppButton     from '@/Components/App/AppButton.vue';
 import AppCard       from '@/Components/App/AppCard.vue';
@@ -116,6 +118,9 @@ interface UserRow {
 }
 
 const toast = useToast();
+
+usePageGuard({ permission: 'users.view' });
+const { can } = useAuth();
 
 const search       = ref('');
 const filterRole   = ref('');

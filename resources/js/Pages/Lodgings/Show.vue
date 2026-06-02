@@ -79,6 +79,7 @@ import api            from '@/lib/axios';
 import { decodeId }   from '@/lib/hashid';
 import { useNotFound } from '@/Composables/useNotFound';
 import { useToast }   from '@/Composables/useToast';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import SimporaLayout  from '@/Layouts/SimporaLayout.vue';
 import AppButton      from '@/Components/App/AppButton.vue';
 import AppBreadcrumb  from '@/Components/App/AppBreadcrumb.vue';
@@ -93,6 +94,7 @@ interface Props { id: string | number }
 const props = defineProps<Props>();
 const { notFound } = useNotFound();
 const toast = useToast();
+usePageGuard({ anyRole: ['super_admin', 'panitia_besar'] });
 const realId = decodeId(props.id);
 
 const activeTab    = ref('info');

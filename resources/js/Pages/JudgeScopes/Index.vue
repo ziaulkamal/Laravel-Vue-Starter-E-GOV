@@ -88,6 +88,7 @@ import { Search, Plus } from '@lucide/vue';
 import api           from '@/lib/axios';
 import { useToast }  from '@/Composables/useToast';
 import { useAuth }   from '@/Composables/useAuth';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import SimporaLayout from '@/Layouts/SimporaLayout.vue';
 import AppButton     from '@/Components/App/AppButton.vue';
 import AppCard       from '@/Components/App/AppCard.vue';
@@ -96,6 +97,7 @@ import AppModal      from '@/Components/App/AppModal.vue';
 import AppSelect     from '@/Components/App/AppSelect.vue';
 import AppEmptyState from '@/Components/App/AppEmptyState.vue';
 
+usePageGuard({ anyRole: ['super_admin', 'panitia_besar'] });
 const toast = useToast();
 const { isSuperAdmin } = useAuth();
 

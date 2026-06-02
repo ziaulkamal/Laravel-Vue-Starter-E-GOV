@@ -104,6 +104,7 @@ import api             from '@/lib/axios';
 import { decodeId }    from '@/lib/hashid';
 import { useToast }    from '@/Composables/useToast';
 import { useNotFound } from '@/Composables/useNotFound';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import SimporaLayout   from '@/Layouts/SimporaLayout.vue';
 import AppCard         from '@/Components/App/AppCard.vue';
 import AppButton       from '@/Components/App/AppButton.vue';
@@ -117,6 +118,7 @@ const props = defineProps<Props>();
 const isEdit  = computed(() => !!props.id);
 const loading = ref(false);
 const toast   = useToast();
+usePageGuard({ anyPermission: ['users.create', 'users.update'] });
 const { notFound } = useNotFound();
 const realId  = isEdit.value ? decodeId(props.id as string | number) : NaN;
 

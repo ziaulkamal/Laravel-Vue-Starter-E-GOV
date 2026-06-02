@@ -56,6 +56,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import SimporaLayout from '@/Layouts/SimporaLayout.vue';
 import AppCard       from '@/Components/App/AppCard.vue';
 import AppButton     from '@/Components/App/AppButton.vue';
@@ -65,6 +66,7 @@ import AppTextarea   from '@/Components/App/AppTextarea.vue';
 import AppBreadcrumb from '@/Components/App/AppBreadcrumb.vue';
 
 interface Props { id?: string | number }
+usePageGuard({ anyRole: ['super_admin', 'panitia_besar'] });
 const props  = defineProps<Props>();
 const isEdit  = computed(() => !!props.id);
 const loading = ref(false);

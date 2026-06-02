@@ -6,7 +6,7 @@
                     <h1 class="page-title">Venue</h1>
                     <p class="page-subtitle">Kelola venue pertandingan PORA XV</p>
                 </div>
-                <AppButton variant="primary" size="md" @click="$inertia.visit('/venues/create')">+ Tambah Venue</AppButton>
+                <AppButton v-if="can('venues.manage')" variant="primary" size="md" @click="$inertia.visit('/venues/create')">+ Tambah Venue</AppButton>
             </div>
 
             <AppCard padding="none">
@@ -54,7 +54,7 @@
                                 <td class="dt-td dt-td--actions">
                                     <div class="action-btns">
                                         <AppButton size="xs" variant="ghost" @click="$inertia.visit(`/venues/${encodeId(v.id)}`)"><Eye :size="14" /></AppButton>
-                                        <AppButton size="xs" variant="ghost" @click="$inertia.visit(`/venues/${encodeId(v.id)}/edit`)"><Pencil :size="14" /></AppButton>
+                                        <AppButton v-if="can('venues.manage')" size="xs" variant="ghost" @click="$inertia.visit(`/venues/${encodeId(v.id)}/edit`)"><Pencil :size="14" /></AppButton>
                                     </div>
                                 </td>
                             </tr>
@@ -79,11 +79,16 @@ import AppButton     from '@/Components/App/AppButton.vue';
 import AppCard       from '@/Components/App/AppCard.vue';
 import AppBadge      from '@/Components/App/AppBadge.vue';
 import AppEmptyState from '@/Components/App/AppEmptyState.vue';
+import { useAuth } from '@/Composables/useAuth';
+import { usePageGuard } from '@/Composables/usePageGuard';
 
 interface Venue {
     id: number; name: string; address: string | null; capacity: number | null;
     is_active: boolean; sport_categories_count?: number;
 }
+
+usePageGuard({ anyRole: ['super_admin', 'panitia_besar', 'admin_venue'] });
+const { can } = useAuth();
 
 const search       = ref('');
 const filterStatus = ref('');

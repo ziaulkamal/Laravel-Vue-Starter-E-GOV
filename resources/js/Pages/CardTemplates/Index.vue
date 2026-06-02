@@ -52,10 +52,13 @@
 
 <script setup lang="ts">
 import SimporaLayout from '@/Layouts/SimporaLayout.vue';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import { encodeId } from '@/lib/hashid';
 import AppButton     from '@/Components/App/AppButton.vue';
 import AppCard       from '@/Components/App/AppCard.vue';
 import AppBadge      from '@/Components/App/AppBadge.vue';
+
+usePageGuard({ anyRole: ['super_admin', 'panitia_besar'] });
 
 const templates = [
     { id: 1, name: 'Kartu Atlet PORA XV',   type: 'athlete_card', is_active: true,  created_at: '2026-04-01' },

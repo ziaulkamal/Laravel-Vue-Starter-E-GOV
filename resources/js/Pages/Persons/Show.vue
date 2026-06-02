@@ -9,10 +9,10 @@
             <div class="page-header">
                 <h1 class="page-title">Detail Data Pribadi</h1>
                 <div v-if="person" class="header-actions">
-                    <AppButton variant="secondary" size="sm" @click="$inertia.visit(`/persons/${encodeId(person.id)}/edit`)">
+                    <AppButton v-if="can('persons.update')" variant="secondary" size="sm" @click="$inertia.visit(`/persons/${encodeId(person.id)}/edit`)">
                         <Pencil :size="14" /> Edit
                     </AppButton>
-                    <AppButton variant="danger" size="sm" @click="confirmDelete = true">
+                    <AppButton v-if="can('persons.delete')" variant="danger" size="sm" @click="confirmDelete = true">
                         <Trash2 :size="14" /> Hapus
                     </AppButton>
                 </div>
@@ -172,6 +172,8 @@ import { Pencil, Trash2, CreditCard, Calendar, MapPin, Phone, Mail } from '@luci
 import api           from '@/lib/axios';
 import { useToast }  from '@/Composables/useToast';
 import { useNotFound } from '@/Composables/useNotFound';
+import { useAuth }    from '@/Composables/useAuth';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import { encodeId, decodeId } from '@/lib/hashid';
 import SimporaLayout from '@/Layouts/SimporaLayout.vue';
 import AppCard       from '@/Components/App/AppCard.vue';
@@ -186,6 +188,8 @@ interface Props { id: string | number }
 const props = defineProps<Props>();
 const toast = useToast();
 const { notFound } = useNotFound();
+usePageGuard({ permission: 'persons.view' });
+const { can } = useAuth();
 
 // ID di URL ter-obfuscate → decode ke id numerik asli untuk fetch
 const realId = decodeId(props.id);

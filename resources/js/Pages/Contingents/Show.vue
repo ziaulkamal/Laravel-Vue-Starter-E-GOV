@@ -35,7 +35,7 @@
                             </div>
                         </div>
                         <div class="contingent-actions">
-                            <button type="button" class="act-btn act-edit" @click="$inertia.visit(`/contingents/${encodeId(realId)}/edit`)">
+                            <button v-if="can('contingents.update')" type="button" class="act-btn act-edit" @click="$inertia.visit(`/contingents/${encodeId(realId)}/edit`)">
                                 <Pencil :size="15" /> <span>Edit</span>
                             </button>
                             <button v-if="isSuperAdmin" type="button" class="act-btn act-delete" @click="showDelete = true">
@@ -129,6 +129,7 @@ import { decodeId, encodeId } from '@/lib/hashid';
 import { useNotFound } from '@/Composables/useNotFound';
 import { useToast }   from '@/Composables/useToast';
 import { useAuth }    from '@/Composables/useAuth';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import SimporaLayout  from '@/Layouts/SimporaLayout.vue';
 import AppCard        from '@/Components/App/AppCard.vue';
 import AppButton      from '@/Components/App/AppButton.vue';
@@ -143,7 +144,8 @@ interface Props { id: string | number }
 const props = defineProps<Props>();
 const { notFound } = useNotFound();
 const toast = useToast();
-const { isSuperAdmin } = useAuth();
+usePageGuard({ permission: 'contingents.view' });
+const { isSuperAdmin, can } = useAuth();
 const realId = decodeId(props.id);
 
 const showDelete = ref(false);

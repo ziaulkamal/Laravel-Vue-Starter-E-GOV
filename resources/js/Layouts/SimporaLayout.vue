@@ -21,7 +21,7 @@ import { Head, router } from '@inertiajs/vue3';
 import BaseLayout from '@/Layouts/BaseLayout.vue';
 import NotificationPanel from '@/Components/App/NotificationPanel.vue';
 import api from '@/lib/axios';
-import { simporaNavGroups } from '@/config/nav';
+import { simporaNavGroups, type NavItem } from '@/config/nav';
 import { useAuth } from '@/Composables/useAuth';
 
 interface Props {
@@ -34,11 +34,23 @@ const props = withDefaults(defineProps<Props>(), {
     title: '',
 });
 
-const { user, isAuthenticated, isSuperAdmin, logout, fetchMe } = useAuth();
+const { user, isAuthenticated, isSuperAdmin, can, canAny, hasAnyRole, logout, fetchMe } = useAuth();
 
-// Sembunyikan grup khusus super-admin (mis. Dev/Tools) dari user biasa.
+// Apakah sebuah item nav boleh tampil untuk user aktif (RBAC).
+function canSeeItem(item: NavItem): boolean {
+    if (item.permission && !can(item.permission)) return false;
+    if (item.anyPermission && !canAny(item.anyPermission)) return false;
+    if (item.roles && !hasAnyRole(item.roles)) return false;
+    return true;
+}
+
+// Filter nav per role/permission: buang item tak berhak, lalu buang grup
+// yang jadi kosong & grup superAdminOnly untuk non-super-admin.
 const navGroups = computed(() =>
-    simporaNavGroups.filter((g) => !g.superAdminOnly || isSuperAdmin.value),
+    simporaNavGroups
+        .filter((g) => !g.superAdminOnly || isSuperAdmin.value)
+        .map((g) => ({ ...g, items: g.items.filter(canSeeItem) }))
+        .filter((g) => g.items.length > 0),
 );
 
 // Guard SINKRON (di setup, sebelum render) supaya halaman terproteksi

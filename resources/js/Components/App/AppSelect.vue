@@ -46,6 +46,12 @@
                 @keydown.space.prevent="toggle"
                 @keydown.enter.prevent="toggle"
             >
+                <ContingentLogo
+                    v-if="selectedOption && selectedOption.logo"
+                    :contingent="selectedOption.logo"
+                    :size="20" :radius="5"
+                    class="app-sel__lead"
+                />
                 <span class="app-sel__value" :class="{ 'app-sel__value--placeholder': !selectedLabel }">
                     {{ selectedLabel || placeholder }}
                 </span>
@@ -92,6 +98,7 @@
                     @click="select(opt.value ?? opt)"
                 >
                     <span v-if="opt.icon" class="app-sel__opt-icon"><component :is="opt.icon" :size="14" /></span>
+                    <ContingentLogo v-else-if="opt.logo" :contingent="opt.logo" :size="20" :radius="5" class="app-sel__lead" />
                     {{ opt.label ?? opt }}
                     <svg v-if="(opt.value ?? opt) === modelValue" class="ml-auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                         <polyline points="20 6 9 17 4 12"/>
@@ -109,6 +116,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import type { AppSelectOption, AppSize } from '@/types';
+import ContingentLogo from '@/Components/App/ContingentLogo.vue';
 
 type SelectOptionRaw = AppSelectOption | string | number;
 
@@ -175,6 +183,11 @@ function updatePanelPosition(): void {
     panelStyle.value = style;
 }
 
+const selectedOption = computed<AppSelectOption | null>(() => {
+    const opt = props.options.find(o => (typeof o === 'object' && o !== null ? (o as { value?: string | number }).value : o) === props.modelValue);
+    return (typeof opt === 'object' && opt !== null) ? (opt as AppSelectOption) : null;
+});
+
 const selectedLabel = computed<string>(() => {
     const opt = props.options.find(o => (typeof o === 'object' && o !== null ? (o as { value?: string | number }).value : o) === props.modelValue);
     if (!opt) return '';
@@ -211,4 +224,10 @@ onUnmounted(() => {
     window.removeEventListener('scroll', onReposition, true);
 });
 </script>
+
+<style scoped>
+/* Leading logo (mis. logo kontingen) sejajar dengan label — trigger & opsi */
+.app-sel__trigger { display: flex; align-items: center; }
+.app-sel__lead { flex-shrink: 0; margin-right: 8px; }
+</style>
 

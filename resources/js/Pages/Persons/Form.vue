@@ -198,6 +198,7 @@ import { decodeId } from '@/lib/hashid';
 import { useNotFound } from '@/Composables/useNotFound';
 import api   from '@/lib/axios';
 import { useToast } from '@/Composables/useToast';
+import { usePageGuard } from '@/Composables/usePageGuard';
 import { Loader2, CheckCircle2, AlertCircle, XCircle, Sparkles } from '@lucide/vue';
 import SimporaLayout  from '@/Layouts/SimporaLayout.vue';
 import AppCard        from '@/Components/App/AppCard.vue';
@@ -216,6 +217,7 @@ const isEdit  = computed(() => !!props.id);
 const realId  = computed(() => (props.id != null ? decodeId(props.id) : null)); // decode hash URL → id asli
 const loading = ref(false);
 const toast   = useToast();
+usePageGuard({ anyPermission: ['persons.create', 'persons.update'] });
 const { notFound } = useNotFound();
 
 const form = reactive({

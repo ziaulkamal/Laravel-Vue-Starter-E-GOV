@@ -6,7 +6,7 @@
                     <h1 class="page-title">Data Pribadi</h1>
                     <p class="page-subtitle">Kelola data pribadi peserta PORA XV</p>
                 </div>
-                <AppButton variant="primary" size="md" @click="$inertia.visit('/persons/create')">
+                <AppButton v-if="can('persons.create')" variant="primary" size="md" @click="$inertia.visit('/persons/create')">
                     + Tambah Person
                 </AppButton>
             </div>
@@ -86,7 +86,7 @@
                                         <AppButton size="xs" variant="ghost" @click="$inertia.visit(`/persons/${encodeId(person.id)}`)">
                                             <Eye :size="14" />
                                         </AppButton>
-                                        <AppButton size="xs" variant="ghost" @click="$inertia.visit(`/persons/${encodeId(person.id)}/edit`)">
+                                        <AppButton v-if="can('persons.update')" size="xs" variant="ghost" @click="$inertia.visit(`/persons/${encodeId(person.id)}/edit`)">
                                             <Pencil :size="14" />
                                         </AppButton>
                                     </div>
@@ -133,12 +133,17 @@ import AppEmptyState  from '@/Components/App/AppEmptyState.vue';
 import AppSelectSearch from '@/Components/App/AppSelectSearch.vue';
 import AppPagination  from '@/Components/App/AppPagination.vue';
 import { encodeId } from '@/lib/hashid';
+import { useAuth } from '@/Composables/useAuth';
+import { usePageGuard } from '@/Composables/usePageGuard';
 
 interface Person {
     id: number; nik: string; nama_lengkap: string;
     jenis_kelamin: 'male' | 'female'; tanggal_lahir: string; no_hp: string | null;
     wilayah_kode: string | null;
 }
+
+usePageGuard({ permission: 'persons.view' });
+const { can } = useAuth();
 
 const search       = ref('');
 const filterGender = ref('');

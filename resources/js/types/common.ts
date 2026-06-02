@@ -35,6 +35,8 @@ export interface AppSelectOption {
   label?: string
   disabled?: boolean
   icon?: unknown
+  /** Objek kontingen (name/short_name/wilayah_kode) → render <ContingentLogo> sbg leading visual. */
+  logo?: Record<string, unknown> | null
 }
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
