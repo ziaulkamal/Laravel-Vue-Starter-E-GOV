@@ -26,10 +26,10 @@
 
             <!-- KPI Row — hanya admin/panitia/super -->
             <div v-if="canSeeGlobalKpi" class="kpi-grid">
-                <KpiCard label="Total Kontingen"  :value="23"  icon="Shield"   color="accent" />
-                <KpiCard label="Total Atlet"      :value="342" icon="Users"    color="info" />
-                <KpiCard label="Tanding Hari Ini" :value="18"  icon="Calendar" color="warning" />
-                <KpiCard label="Dok. Pending"     :value="12"  icon="FileText" color="danger" />
+                <KpiCard label="Total Kontingen"  :value="kpi.contingents"       icon="Shield"   color="accent" />
+                <KpiCard label="Total Atlet"      :value="kpi.athletes"          icon="Users"    color="info" />
+                <KpiCard label="Tanding Hari Ini" :value="kpi.matches_today"     icon="Calendar" color="warning" />
+                <KpiCard label="Dok. Pending"     :value="kpi.documents_pending" icon="FileText" color="danger" />
             </div>
 
             <!-- Content Row -->
@@ -38,16 +38,16 @@
                 <AppCard v-if="can('matches.view')">
                     <template #header>
                         <div class="card-header-row">
-                            <span class="card-header-title">Pertandingan Hari Ini</span>
+                            <span class="card-header-title">{{ matchesUpcoming ? 'Pertandingan Akan Datang' : 'Pertandingan Hari Ini' }}</span>
                             <Link href="/matches" class="card-header-link">Lihat semua</Link>
                         </div>
                     </template>
-                    <div class="match-list">
+                    <div v-if="todayMatches.length" class="match-list">
                         <div v-for="match in todayMatches" :key="match.code" class="match-item">
                             <div class="match-item__info">
                                 <span class="match-item__code">{{ match.code }}</span>
                                 <span class="match-item__name">{{ match.name }}</span>
-                                <span class="match-item__venue">{{ match.venue }} · {{ match.time }}</span>
+                                <span class="match-item__venue">{{ match.venue }} · {{ matchesUpcoming && match.date ? fmtDate(match.date) + ' ' : '' }}{{ match.time }}</span>
                             </div>
                             <AppBadge :color="statusColor(match.status)" size="sm">
                                 <span v-if="match.status === 'ongoing'" class="pulse-dot" />
@@ -55,6 +55,7 @@
                             </AppBadge>
                         </div>
                     </div>
+                    <p v-else class="empty-hint">Belum ada pertandingan terjadwal.</p>
                 </AppCard>
 
                 <!-- Dokumen Pending — hanya yang bisa verifikasi -->
@@ -65,7 +66,7 @@
                             <Link href="/documents/review" class="card-header-link">Verifikasi</Link>
                         </div>
                     </template>
-                    <div class="doc-list">
+                    <div v-if="pendingDocs.length" class="doc-list">
                         <div v-for="doc in pendingDocs" :key="doc.id" class="doc-item">
                             <div class="doc-item__info">
                                 <span class="doc-item__name">{{ doc.name }}</span>
@@ -74,6 +75,7 @@
                             <AppBadge color="warning" size="sm">Pending</AppBadge>
                         </div>
                     </div>
+                    <p v-else class="empty-hint">Tidak ada dokumen menunggu verifikasi.</p>
                 </AppCard>
             </div>
 
@@ -85,7 +87,7 @@
                         <Link href="/leaderboard" class="card-header-link">Lihat semua</Link>
                     </div>
                 </template>
-                <table class="lb-table">
+                <table v-if="leaderboard.length" class="lb-table">
                     <thead>
                         <tr class="lb-thead">
                             <th class="lb-th" style="width:40px">#</th>
@@ -108,18 +110,20 @@
                         </tr>
                     </tbody>
                 </table>
+                <p v-else class="empty-hint">Belum ada perolehan medali.</p>
             </AppCard>
         </div>
     </SimporaLayout>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import {
     ChevronRight, Users, FileCheck, Gavel, BarChart2,
     Shield, Building2, Calendar, UserCog,
 } from '@lucide/vue';
+import api           from '@/lib/axios';
 import SimporaLayout from '@/Layouts/SimporaLayout.vue';
 import KpiCard       from '@/Components/Dashboard/KpiCard.vue';
 import AppCard       from '@/Components/App/AppCard.vue';
@@ -157,27 +161,36 @@ const quickActions = computed(() => {
     return items;
 });
 
-const todayMatches = [
-    { code: 'M-001', name: 'Silat Kumite 60kg Putra',    venue: 'GOR Serbaguna',      time: '08:00', status: 'ongoing' },
-    { code: 'M-002', name: 'Renang 100m Gaya Bebas',     venue: 'Kolam Renang Calang', time: '09:30', status: 'scheduled' },
-    { code: 'M-003', name: 'Bulu Tangkis Tunggal Putra', venue: 'GOR Badminton',       time: '10:00', status: 'scheduled' },
-    { code: 'M-004', name: 'Atletik Lari 400m',          venue: 'Stadion PORA',        time: '07:00', status: 'finished' },
-];
+interface MatchRow { code: string; name: string; venue: string; date?: string | null; time: string; status: string }
+interface DocRow { id: number; name: string; type: string }
+interface LbRow { name: string; gold: number; silver: number; bronze: number }
 
-const pendingDocs = [
-    { id: 1, name: 'Ahmad Fauzi',   type: 'Pas Foto' },
-    { id: 2, name: 'Siti Rahayu',   type: 'KTP' },
-    { id: 3, name: 'Budi Santoso',  type: 'Surat Keterangan' },
-    { id: 4, name: 'Rina Marlina',  type: 'Akta Lahir' },
-];
+const kpi = ref({ contingents: 0, athletes: 0, matches_today: 0, documents_pending: 0 });
+const todayMatches   = ref<MatchRow[]>([]);
+const matchesUpcoming = ref(false);
+const pendingDocs    = ref<DocRow[]>([]);
+const leaderboard    = ref<LbRow[]>([]);
 
-const leaderboard = [
-    { name: 'Aceh Jaya',    gold: 8, silver: 5, bronze: 3 },
-    { name: 'Banda Aceh',   gold: 7, silver: 4, bronze: 4 },
-    { name: 'Aceh Besar',   gold: 5, silver: 6, bronze: 2 },
-    { name: 'Pidie',        gold: 4, silver: 3, bronze: 5 },
-    { name: 'Lhokseumawe', gold: 3, silver: 4, bronze: 6 },
-];
+async function fetchSummary() {
+    try {
+        const res = await api.get('/api/v1/dashboard/summary');
+        const d = res.data?.data ?? {};
+        kpi.value             = { ...kpi.value, ...(d.kpi ?? {}) };
+        todayMatches.value    = Array.isArray(d.today_matches) ? d.today_matches : [];
+        matchesUpcoming.value = !!d.matches_upcoming;
+        pendingDocs.value     = Array.isArray(d.pending_documents) ? d.pending_documents : [];
+        leaderboard.value     = Array.isArray(d.leaderboard) ? d.leaderboard : [];
+    } catch {
+        // Biarkan nilai default (0/empty) — dashboard tetap tampil tanpa data.
+    }
+}
+
+onMounted(fetchSummary);
+
+function fmtDate(d: string) {
+    const [y, m, day] = d.split('-').map(Number);
+    return new Date(y, m - 1, day).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+}
 
 function statusColor(status: string) {
     const map: Record<string, 'info' | 'success' | 'default' | 'warning'> = {
@@ -256,4 +269,5 @@ function statusLabel(status: string) {
 .lb-name   { font-weight: 500; }
 .lb-total  { font-weight: 700; color: var(--color-accent); }
 .lb-medal  { text-align: center; }
+.empty-hint { font-size: 13px; color: var(--color-text-muted); padding: 18px 4px; text-align: center; }
 </style>

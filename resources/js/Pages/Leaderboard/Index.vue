@@ -18,7 +18,9 @@
                 <template #header>
                     <span class="section-title">Klasemen Umum</span>
                 </template>
-                <table class="lb-table">
+                <p v-if="loading" class="lb-empty">Memuat klasemen…</p>
+                <AppEmptyState v-else-if="!leaderboard.length" title="Belum ada perolehan medali" size="sm" />
+                <table v-else class="lb-table">
                     <thead>
                         <tr class="lb-thead">
                             <th class="lb-th" style="width:40px">#</th>
@@ -67,7 +69,10 @@
                         <AppSelect v-model="selectedCabor" :options="caborOptions" style="width:200px" />
                     </div>
                 </template>
-                <table v-if="selectedCabor" class="lb-table">
+                <p v-if="selectedCabor && caborLoading" class="lb-empty">Memuat…</p>
+                <AppEmptyState v-else-if="!selectedCabor" title="Pilih cabor untuk melihat klasemen" size="sm" />
+                <AppEmptyState v-else-if="!caborLeaderboard.length" title="Belum ada medali untuk cabor ini" size="sm" />
+                <table v-else class="lb-table">
                     <thead>
                         <tr class="lb-thead">
                             <th class="lb-th">#</th>
@@ -87,14 +92,14 @@
                         </tr>
                     </tbody>
                 </table>
-                <AppEmptyState v-else title="Pilih cabor untuk melihat klasemen" size="sm" />
             </AppCard>
         </div>
     </SimporaLayout>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch, onMounted } from 'vue';
+import api           from '@/lib/axios';
 import SimporaLayout from '@/Layouts/SimporaLayout.vue';
 import AppCard       from '@/Components/App/AppCard.vue';
 import AppButton     from '@/Components/App/AppButton.vue';
@@ -102,38 +107,80 @@ import AppSelect     from '@/Components/App/AppSelect.vue';
 import AppEmptyState from '@/Components/App/AppEmptyState.vue';
 import ContingentLogo from '@/Components/App/ContingentLogo.vue';
 
+interface LbEntry { name: string; short?: string; wilayah_kode?: string | null; gold: number; silver: number; bronze: number }
+
 const refreshing    = ref(false);
-const lastUpdated   = ref('5 menit lalu');
+const loading       = ref(false);
+const lastUpdated   = ref('—');
 const selectedCabor = ref('');
 
-const leaderboard = [
-    { name: 'Aceh Jaya',    short: 'ACJ', wilayah_kode: '11.14', gold: 8, silver: 5, bronze: 3 },
-    { name: 'Banda Aceh',   short: 'BNA', wilayah_kode: '11.71', gold: 7, silver: 4, bronze: 4 },
-    { name: 'Aceh Besar',   short: 'ABR', wilayah_kode: '11.06', gold: 5, silver: 6, bronze: 2 },
-    { name: 'Pidie',        short: 'PDI', wilayah_kode: '11.07', gold: 4, silver: 3, bronze: 5 },
-    { name: 'Lhokseumawe', short: 'LHO', wilayah_kode: '11.73', gold: 3, silver: 4, bronze: 6 },
-    { name: 'Bireuen',      short: 'BIR', wilayah_kode: '11.11', gold: 2, silver: 2, bronze: 3 },
-];
+const leaderboard      = ref<LbEntry[]>([]);
+const caborOptions     = ref<{ value: string | number; label: string }[]>([]);
+const caborLeaderboard = ref<LbEntry[]>([]);
+const caborLoading     = ref(false);
 
-const caborOptions = [
-    { value: 'silat',  label: 'Silat' },
-    { value: 'renang', label: 'Renang' },
-    { value: 'atletik',label: 'Atletik' },
-];
+function mapRows(raw: any): LbEntry[] {
+    const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+    return list.filter(Boolean).map((r: any) => ({
+        name: r.contingent_name ?? r.name ?? '—',
+        short: r.short_name ?? undefined,
+        wilayah_kode: r.wilayah_kode ?? null,
+        gold: Number(r.gold ?? 0),
+        silver: Number(r.silver ?? 0),
+        bronze: Number(r.bronze ?? 0),
+    }));
+}
 
-const caborLeaderboard = [
-    { name: 'Aceh Jaya',  gold: 3, silver: 1, bronze: 0 },
-    { name: 'Pidie',      gold: 1, silver: 2, bronze: 1 },
-    { name: 'Banda Aceh', gold: 1, silver: 0, bronze: 2 },
-];
+function nowLabel() {
+    return new Date().toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
+}
+
+async function fetchOverall() {
+    loading.value = true;
+    try {
+        const res = await api.get('/api/v1/leaderboard');
+        leaderboard.value = mapRows(res.data?.data);
+        lastUpdated.value = nowLabel();
+    } catch {
+        leaderboard.value = [];
+    } finally {
+        loading.value = false;
+    }
+}
+
+async function fetchCabors() {
+    try {
+        const res = await api.get('/api/v1/sports');
+        const raw = res.data?.data;
+        const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+        caborOptions.value = list.filter(Boolean).map((s: any) => ({ value: s.id, label: s.name }));
+    } catch {
+        caborOptions.value = [];
+    }
+}
+
+async function fetchCaborLeaderboard(sportId: string | number) {
+    if (!sportId) { caborLeaderboard.value = []; return; }
+    caborLoading.value = true;
+    try {
+        const res = await api.get('/api/v1/leaderboard', { params: { sport_id: sportId } });
+        caborLeaderboard.value = mapRows(res.data?.data);
+    } catch {
+        caborLeaderboard.value = [];
+    } finally {
+        caborLoading.value = false;
+    }
+}
+
+watch(selectedCabor, (v) => fetchCaborLeaderboard(v));
 
 function refresh() {
     refreshing.value = true;
-    setTimeout(() => {
-        refreshing.value = false;
-        lastUpdated.value = 'Baru saja';
-    }, 1000);
+    Promise.all([fetchOverall(), selectedCabor.value ? fetchCaborLeaderboard(selectedCabor.value) : Promise.resolve()])
+        .finally(() => { refreshing.value = false; });
 }
+
+onMounted(() => { fetchOverall(); fetchCabors(); });
 </script>
 
 <style scoped>
@@ -161,4 +208,5 @@ function refresh() {
 .lb-gold-count { font-weight: 700; color: var(--color-gold); }
 .lb-total   { font-weight: 700; color: var(--color-accent); }
 .kontingen-cell { display: flex; align-items: center; gap: 10px; }
+.lb-empty { font-size: 13px; color: var(--color-text-muted); padding: 18px 4px; text-align: center; }
 </style>

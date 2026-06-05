@@ -1,0 +1,34 @@
+==========================================================================
+ TODO — DAMPAK INTEGRASI FRONTEND PORA (PoraAcehJaya-FE)
+ Peran starter-laravel-tailwindcss: ADMIN OLAHRAGA (konsumen API simpora2026).
+ PRD: PoraAcehJaya-FE/docs/backend/PRD-BACKEND-ADMIN.md
+ Legenda: [ ] belum  [x] selesai  [!] perlu approval user sebelum dikerjakan
+==========================================================================
+
+--------------------------------------------------------------------------
+ STATUS: TIDAK ADA PERUBAHAN YANG DIPERLUKAN
+--------------------------------------------------------------------------
+ Integrasi FE publik PORA ditangani di cms-media + PoraAcehJaya-FE.
+ Admin ini tetap seperti adanya (kelola atlet, kontingen, cabor, venue, jadwal,
+ skor, klasemen, medali, juri). Data yang diinput di sini OTOMATIS tampil di FE
+ publik karena FE & gateway real-time cms-media membaca API simpora2026 yang sama.
+
+[x] Tidak ada migrasi / endpoint / halaman baru untuk FE PORA.
+[x] Live Streaming TIDAK dikelola di sini (dipindah ke cms-media/admin).
+[x] Deskripsi/foto venue TIDAK ditambah di sini (enrichment di cms-media).
+
+--------------------------------------------------------------------------
+ DAMPAK OPERASIONAL (yang perlu diketahui admin)
+--------------------------------------------------------------------------
+ - Skor yang diinput di Matches/Show -> dalam beberapa detik tampil real-time di FE publik
+   (via gateway cms-media yang mem-poll API simpora2026). Tidak ada aksi tambahan.
+ - Status match (Terjadwal->Berlangsung->Selesai) & penetapan medali -> ikut ter-relay ke FE.
+ - Pastikan scheduled_at diisi benar (wall-clock) — FE menampilkannya apa adanya.
+
+--------------------------------------------------------------------------
+ JIKA NANTI MUNCUL KEBUTUHAN UBAH (harus approval user dulu — aturan #4)
+--------------------------------------------------------------------------
+[!] Mis. menambah field venue (deskripsi/foto) di form ini  -> default: JANGAN (ada di cms-media).
+[!] Mis. UI Live Streaming di admin ini                     -> default: JANGAN (ada di cms-media).
+    > Flag ke user; bila disetujui baru kerjakan + perbarui todos ini.
+==========================================================================
