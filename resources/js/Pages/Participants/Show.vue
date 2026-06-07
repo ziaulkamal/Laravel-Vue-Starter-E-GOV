@@ -274,7 +274,10 @@
         <!-- ─── Daftarkan ke Sub-Cabor ─────────────────────────── -->
         <AppModal v-model="showRegister" title="Daftarkan ke Sub-Cabor" size="sm">
             <div class="reg-body">
-                <p class="reg-hint">Pilih cabor lalu sub-cabor. Atlet hanya boleh bertanding di satu cabor (boleh beberapa sub-cabor di dalamnya). Pendaftaran menunggu persetujuan panitia besar.</p>
+                <p class="reg-hint">Pilih cabor lalu sub-cabor. Atlet hanya boleh bertanding di satu cabor (boleh beberapa sub-cabor di dalamnya).</p>
+                <p v-if="hasActiveReg && !canRemoveReg" class="reg-warn">
+                    ⚠️ Atlet sudah punya sub-cabor aktif. Sebagai admin kontingen, sub-cabor <strong>tambahan</strong> ini akan berstatus <strong>menunggu persetujuan</strong> panitia besar / super admin.
+                </p>
                 <AppSelect v-model="regSportId" label="Cabor" :options="sportOptions" placeholder="Pilih cabor..." @update:model-value="onRegSportChange" />
                 <AppSelect v-model="regCategoryId" label="Sub-Cabor" :options="categoryOptions" :placeholder="regSportId ? 'Pilih sub-cabor...' : 'Pilih cabor dulu'" />
             </div>
@@ -366,6 +369,9 @@ const canRegister = computed(() =>
 );
 // Kunci: setelah terdaftar, hanya panitia besar / super admin yang boleh ubah/batalkan.
 const canRemoveReg = computed(() => isSuperAdmin.value || hasRole('panitia_besar'));
+// Sudah punya sub-cabor aktif (approved/pending) → pendaftaran berikutnya oleh
+// admin kontingen akan menunggu persetujuan.
+const hasActiveReg = computed(() => registrations.value.some((r: any) => r.status !== 'rejected'));
 
 async function fetchParticipant() {
     if (Number.isNaN(realId)) { notFound(); return; }
@@ -771,6 +777,7 @@ function docLabel(s: string | null) { return ({ approved: 'Approved', pending: '
 .subcabor-lock    { display: inline-flex; align-items: center; color: var(--color-text-subtle); }
 .reg-body { display: flex; flex-direction: column; gap: 14px; }
 .reg-hint { font-size: 12px; color: var(--color-text-muted); margin: 0; line-height: 1.5; }
+.reg-warn { font-size: 12px; color: #d97706; background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.25); border-radius: 8px; padding: 9px 11px; margin: 0; line-height: 1.5; }
 .kartu-section { padding-top: 8px; display: flex; flex-direction: column; gap: 14px; }
 
 /* Upload modal */
