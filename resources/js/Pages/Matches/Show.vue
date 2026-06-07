@@ -388,10 +388,19 @@
         <!-- Modal Ajukan Perubahan Skor (pertandingan selesai) -->
         <AppModal v-model="showChangeReq" title="Ajukan Perubahan Skor" size="sm">
             <div class="chg-body">
-                <p class="chg-hint">Usulkan skor baru untuk <strong>{{ match?.match_code }}</strong>. Perubahan baru berlaku setelah disetujui panitia besar.</p>
+                <p class="chg-hint">Usulkan hasil baru untuk <strong>{{ match?.match_code }}</strong>. Perubahan baru berlaku setelah disetujui panitia besar.</p>
+
+                <!-- Ranking: nilai per kontingen -->
+                <div v-if="kind === 'ranking'" class="chg-rank">
+                    <div v-for="p in (match?.participants ?? [])" :key="p.id" class="chg-rank-row">
+                        <span class="chg-rank-name">{{ cap(p.contingent?.name) ?? '—' }}</span>
+                        <input class="chg-input chg-input--rank" :placeholder="rankPlaceholder" v-model="rankValues[p.contingent_id ?? p.contingent?.id]" />
+                    </div>
+                    <p class="chg-rank-hint">{{ rankHint }}</p>
+                </div>
 
                 <!-- BO3: per set -->
-                <div v-if="isBo3" class="chg-sets">
+                <div v-else-if="isBo3" class="chg-sets">
                     <div v-for="(s, i) in setsForm" :key="i" class="chg-set-row">
                         <span class="chg-set-label">Set {{ i + 1 }}</span>
                         <input type="number" min="0" class="chg-input" v-model.number="s.home" />
@@ -696,8 +705,9 @@ const canScore = computed(() =>
 );
 // Penilaian hanya saat pertandingan berlangsung & oleh super admin / juri ditugaskan.
 const isScoring = computed(() => match.value?.status === 'ongoing' && canScore.value);
-// Pengajuan perubahan: juri ditugaskan / penilai / super admin, untuk laga versus.
-const canRequestChange = computed(() => (canScore.value || can('results.manage')) && kind.value === 'versus');
+// Pengajuan perubahan: juri ditugaskan / penilai / super admin. Berlaku untuk
+// semua jenis laga (versus head-to-head maupun ranking).
+const canRequestChange = computed(() => canScore.value || can('results.manage'));
 
 const bo3Home = computed(() => setsForm.value.filter(s => (Number(s.home) || 0) > (Number(s.away) || 0)).length);
 const bo3Away = computed(() => setsForm.value.filter(s => (Number(s.away) || 0) > (Number(s.home) || 0)).length);
@@ -1146,6 +1156,11 @@ function medalColor(m: string) {
 .chg-set-row { display: flex; align-items: center; gap: 8px; }
 .chg-set-label { font-size: 12px; font-weight: 600; color: var(--color-text-muted); width: 48px; }
 .chg-set-x   { border: none; background: transparent; color: var(--color-danger); cursor: pointer; font-size: 18px; line-height: 1; }
+.chg-rank      { display: flex; flex-direction: column; gap: 8px; }
+.chg-rank-row  { display: flex; align-items: center; gap: 10px; }
+.chg-rank-name { flex: 1; font-size: 13px; color: var(--color-text-primary); min-width: 0; }
+.chg-input--rank { width: 130px; font-size: 14px; font-weight: 600; text-align: left; }
+.chg-rank-hint { font-size: 11.5px; color: var(--color-text-muted); margin: 2px 0 0; line-height: 1.4; }
 
 /* Penilaian (scoring editor) */
 .scoreboard.scoring  { border-color: var(--color-success); }

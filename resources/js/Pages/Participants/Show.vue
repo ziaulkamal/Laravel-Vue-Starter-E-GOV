@@ -132,7 +132,7 @@
                             <AppButton
                                 v-if="canRegister"
                                 variant="primary" size="sm"
-                                :disabled="!docsComplete"
+                                :disabled="!docsApproved"
                                 @click="openRegister"
                             >
                                 <template #icon><CirclePlus :size="15" /></template> Daftarkan ke Sub-Cabor
@@ -156,8 +156,8 @@
                         </div>
                         <AppEmptyState v-if="!registrations.length" title="Belum terdaftar di sub-cabor" size="sm" />
 
-                        <AppAlert v-if="isAthlete && !docsComplete" type="warning" title="Lengkapi berkas dulu">
-                            <template #description>Atlet belum bisa didaftarkan ke sub-cabor sampai seluruh berkas wajib diunggah &amp; diverifikasi.</template>
+                        <AppAlert v-if="isAthlete && !docsApproved" type="warning" title="Berkas belum diverifikasi">
+                            <template #description>Atlet belum bisa didaftarkan ke sub-cabor sampai seluruh berkas wajib <strong>disetujui (approved)</strong> oleh panitia besar / super admin.</template>
                         </AppAlert>
                         <AppAlert v-else-if="!isAthlete" type="info" title="Pendaftaran sub-cabor hanya untuk atlet">
                             <template #description>Peserta dengan peran ofisial/pelatih tidak didaftarkan ke sub-cabor.</template>
