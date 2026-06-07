@@ -127,13 +127,40 @@
                 <!-- Sub-Cabor -->
                 <template #subcabor>
                     <div class="subcabor-section">
+                        <div v-if="isAthlete" class="subcabor-head">
+                            <p class="subcabor-intro">Pendaftaran atlet ke cabor &amp; sub-cabor. Setelah didaftarkan, hanya panitia besar / super admin yang dapat membatalkan atau mengubahnya.</p>
+                            <AppButton
+                                v-if="canRegister"
+                                variant="primary" size="sm"
+                                :disabled="!docsComplete"
+                                @click="openRegister"
+                            >
+                                <template #icon><CirclePlus :size="15" /></template> Daftarkan ke Sub-Cabor
+                            </AppButton>
+                        </div>
+
                         <div v-for="sc in registrations" :key="sc.id" class="subcabor-item">
-                            <span class="subcabor-name">{{ sc.sport_category?.name ?? '—' }}</span>
+                            <div class="subcabor-info">
+                                <span class="subcabor-name">{{ sc.sport_category?.name ?? '—' }}</span>
+                                <span v-if="sc.sport_category?.sport?.name" class="subcabor-sport">{{ sc.sport_category.sport.name }}</span>
+                            </div>
                             <AppBadge :color="regColor(sc.status)" size="sm">{{ regLabel(sc.status) }}</AppBadge>
+                            <div class="subcabor-actions">
+                                <template v-if="canVerify && sc.status === 'pending'">
+                                    <button class="da-btn da-btn--ok" title="Setujui" :disabled="regBusyId === sc.id" @click="approveReg(sc)"><Check :size="14" /></button>
+                                    <button class="da-btn da-btn--danger" title="Tolak" :disabled="regBusyId === sc.id" @click="rejectReg(sc)"><X :size="14" /></button>
+                                </template>
+                                <button v-if="canRemoveReg" class="da-btn da-btn--danger" title="Batalkan registrasi" :disabled="regBusyId === sc.id" @click="confirmRemoveReg(sc)"><Trash2 :size="14" /></button>
+                                <span v-else-if="!canVerify" class="subcabor-lock" title="Terkunci — hanya panitia besar/super admin"><Lock :size="13" /></span>
+                            </div>
                         </div>
                         <AppEmptyState v-if="!registrations.length" title="Belum terdaftar di sub-cabor" size="sm" />
-                        <AppAlert v-if="!docsComplete" type="warning" title="Lengkapi berkas dulu">
-                            <template #description>Peserta belum bisa didaftarkan ke sub-cabor sampai seluruh berkas wajib diunggah.</template>
+
+                        <AppAlert v-if="isAthlete && !docsComplete" type="warning" title="Lengkapi berkas dulu">
+                            <template #description>Atlet belum bisa didaftarkan ke sub-cabor sampai seluruh berkas wajib diunggah &amp; diverifikasi.</template>
+                        </AppAlert>
+                        <AppAlert v-else-if="!isAthlete" type="info" title="Pendaftaran sub-cabor hanya untuk atlet">
+                            <template #description>Peserta dengan peran ofisial/pelatih tidak didaftarkan ke sub-cabor.</template>
                         </AppAlert>
                     </div>
                 </template>
@@ -243,6 +270,28 @@
                 </AppButton>
             </template>
         </AppModal>
+
+        <!-- ─── Daftarkan ke Sub-Cabor ─────────────────────────── -->
+        <AppModal v-model="showRegister" title="Daftarkan ke Sub-Cabor" size="sm">
+            <div class="reg-body">
+                <p class="reg-hint">Pilih cabor lalu sub-cabor. Atlet hanya boleh bertanding di satu cabor (boleh beberapa sub-cabor di dalamnya). Pendaftaran menunggu persetujuan panitia besar.</p>
+                <AppSelect v-model="regSportId" label="Cabor" :options="sportOptions" placeholder="Pilih cabor..." @update:model-value="onRegSportChange" />
+                <AppSelect v-model="regCategoryId" label="Sub-Cabor" :options="categoryOptions" :placeholder="regSportId ? 'Pilih sub-cabor...' : 'Pilih cabor dulu'" />
+            </div>
+            <template #footer>
+                <AppButton variant="secondary" @click="showRegister = false">Batal</AppButton>
+                <AppButton variant="primary" :loading="submittingReg" :disabled="!regCategoryId" @click="submitRegister">Daftarkan</AppButton>
+            </template>
+        </AppModal>
+
+        <!-- ─── Batalkan Registrasi ────────────────────────────── -->
+        <AppModal v-model="showRemoveReg" title="Batalkan Registrasi" size="sm">
+            <p class="ov-hint">Batalkan pendaftaran <strong>{{ removeRegTarget?.sport_category?.name }}</strong> untuk atlet ini? Tindakan ini hanya dapat dilakukan panitia besar / super admin.</p>
+            <template #footer>
+                <AppButton variant="secondary" @click="showRemoveReg = false">Tidak</AppButton>
+                <AppButton variant="danger" :loading="removingReg" @click="doRemoveReg"><template #icon><Trash2 :size="15" /></template> Batalkan</AppButton>
+            </template>
+        </AppModal>
     </SimporaLayout>
 </template>
 
@@ -251,7 +300,7 @@ import { ref, computed, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import {
     Pencil, Eye, Upload, UploadCloud, RotateCcw, Check, X, Settings2,
-    Download, FileX, XCircle, Loader2, CheckCircle2, AlertTriangle, ShieldCheck, Clock, CirclePlus, ArrowLeftRight,
+    Download, FileX, XCircle, Loader2, CheckCircle2, AlertTriangle, ShieldCheck, Clock, CirclePlus, ArrowLeftRight, Trash2, Lock,
 } from '@lucide/vue';
 import api            from '@/lib/axios';
 import { decodeId, encodeId } from '@/lib/hashid';
@@ -307,6 +356,16 @@ function canReupload(doc: any) {
     if (isSuperAdmin.value) return true;
     return canUpload.value && doc.status === 'rejected';
 }
+
+// ── Pendaftaran sub-cabor ────────────────────────────────────────
+const isAthlete = computed(() => participant.value?.role === 'athlete');
+// Boleh mendaftarkan: super admin, panitia besar, atau admin kontingen pemilik.
+const canRegister = computed(() =>
+    isSuperAdmin.value || hasRole('panitia_besar') ||
+    (hasRole('admin_kontingen') && user.value?.kontingen_id === contingentId.value)
+);
+// Kunci: setelah terdaftar, hanya panitia besar / super admin yang boleh ubah/batalkan.
+const canRemoveReg = computed(() => isSuperAdmin.value || hasRole('panitia_besar'));
 
 async function fetchParticipant() {
     if (Number.isNaN(realId)) { notFound(); return; }
@@ -516,6 +575,91 @@ async function submitLend() {
     } finally { lending.value = false; }
 }
 
+// ── Daftarkan ke sub-cabor ───────────────────────────────────────
+const showRegister   = ref(false);
+const regSportId     = ref('');
+const regCategoryId  = ref('');
+const sportOptions   = ref<{ value: string; label: string }[]>([]);
+const categoryOptions = ref<{ value: string; label: string }[]>([]);
+const submittingReg  = ref(false);
+const regBusyId      = ref<number | null>(null);
+
+async function openRegister() {
+    regSportId.value = ''; regCategoryId.value = ''; categoryOptions.value = [];
+    showRegister.value = true;
+    if (!sportOptions.value.length) {
+        try {
+            const res = await api.get('/api/v1/sports', { params: { per_page: 200 } });
+            const raw = res.data?.data;
+            const list = (Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : [])).filter(Boolean);
+            sportOptions.value = list.map((s: any) => ({ value: String(s.id), label: s.name }));
+        } catch { sportOptions.value = []; }
+    }
+}
+async function onRegSportChange() {
+    regCategoryId.value = ''; categoryOptions.value = [];
+    if (!regSportId.value) return;
+    try {
+        const res = await api.get('/api/v1/sport-categories', { params: { sport_id: regSportId.value, per_page: 300 } });
+        const raw = res.data?.data;
+        const list = (Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : [])).filter(Boolean);
+        categoryOptions.value = list.map((c: any) => ({ value: String(c.id), label: c.name }));
+    } catch { categoryOptions.value = []; }
+}
+async function submitRegister() {
+    if (!regCategoryId.value) return;
+    submittingReg.value = true;
+    try {
+        const res = await api.post(`/api/v1/participants/${realId}/registrations`, { sport_category_id: Number(regCategoryId.value) });
+        toast.success(res.data?.message ?? 'Atlet didaftarkan ke sub-cabor');
+        showRegister.value = false;
+        await fetchParticipant();
+    } catch (e: any) {
+        if (e?.response?.status === 422) {
+            const errs = e.response.data?.errors ?? {};
+            const first = Object.values(errs)[0] as string[] | undefined;
+            toast.error(first?.[0] ?? e.response.data?.message ?? 'Data tidak valid');
+        } else {
+            toast.error(e?.response?.data?.message ?? 'Gagal mendaftarkan');
+        }
+    } finally { submittingReg.value = false; }
+}
+
+// ── Persetujuan / pembatalan registrasi (panitia besar / super admin) ──
+async function approveReg(sc: any) {
+    regBusyId.value = sc.id;
+    try {
+        await api.patch(`/api/v1/participants/${realId}/registrations/${sc.id}/status`, { status: 'approved' });
+        toast.success('Registrasi disetujui');
+        await fetchParticipant();
+    } catch (e: any) { toast.error(e?.response?.data?.message ?? 'Gagal menyetujui'); }
+    finally { regBusyId.value = null; }
+}
+async function rejectReg(sc: any) {
+    regBusyId.value = sc.id;
+    try {
+        await api.patch(`/api/v1/participants/${realId}/registrations/${sc.id}/status`, { status: 'rejected' });
+        toast.success('Registrasi ditolak');
+        await fetchParticipant();
+    } catch (e: any) { toast.error(e?.response?.data?.message ?? 'Gagal menolak'); }
+    finally { regBusyId.value = null; }
+}
+const showRemoveReg   = ref(false);
+const removeRegTarget = ref<any>(null);
+const removingReg     = ref(false);
+function confirmRemoveReg(sc: any) { removeRegTarget.value = sc; showRemoveReg.value = true; }
+async function doRemoveReg() {
+    if (!removeRegTarget.value) return;
+    removingReg.value = true;
+    try {
+        await api.delete(`/api/v1/participants/${realId}/registrations/${removeRegTarget.value.id}`);
+        toast.success('Registrasi dibatalkan');
+        showRemoveReg.value = false;
+        await fetchParticipant();
+    } catch (e: any) { toast.error(e?.response?.data?.message ?? 'Gagal membatalkan registrasi'); }
+    finally { removingReg.value = false; }
+}
+
 // ── Kartu ────────────────────────────────────────────────────────
 const cardLoading = ref(false);
 async function printCard() {
@@ -617,8 +761,16 @@ function docLabel(s: string | null) { return ({ approved: 'Approved', pending: '
 .da-btn--danger:hover { background: #dc2626; color: #fff; }
 
 .subcabor-section { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
-.subcabor-item    { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--color-border); }
+.subcabor-head    { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+.subcabor-intro   { font-size: 12.5px; color: var(--color-text-muted); margin: 0; max-width: 460px; line-height: 1.5; }
+.subcabor-item    { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-border); }
+.subcabor-info    { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .subcabor-name    { font-size: 13.5px; font-weight: 500; color: var(--color-text-primary); }
+.subcabor-sport   { font-size: 11.5px; color: var(--color-text-muted); }
+.subcabor-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.subcabor-lock    { display: inline-flex; align-items: center; color: var(--color-text-subtle); }
+.reg-body { display: flex; flex-direction: column; gap: 14px; }
+.reg-hint { font-size: 12px; color: var(--color-text-muted); margin: 0; line-height: 1.5; }
 .kartu-section { padding-top: 8px; display: flex; flex-direction: column; gap: 14px; }
 
 /* Upload modal */
