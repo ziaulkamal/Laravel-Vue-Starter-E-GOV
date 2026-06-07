@@ -65,6 +65,12 @@ Route::get('/matches/create',   fn () => Inertia::render('Matches/Form'))->name(
 Route::get('/matches/{id}/edit', fn ($id) => Inertia::render('Matches/Form', ['id' => $id]))->name('matches.edit');
 Route::get('/matches/{id}',     fn ($id) => Inertia::render('Matches/Show', ['id' => $id]))->name('matches.show');
 
+// ── Grup Pertandingan (master grup per sub-cabor) ─────────────
+Route::get('/tournament-groups', fn () => Inertia::render('TournamentGroups/Index'))->name('tournament-groups.index');
+
+// ── Pengajuan Perubahan Hasil ─────────────────────────────────
+Route::get('/result-change-requests', fn () => Inertia::render('ResultChangeRequests/Index'))->name('result-change-requests.index');
+
 // ── Juri ──────────────────────────────────────────────────────
 Route::get('/judge-scopes',        fn () => Inertia::render('JudgeScopes/Index'))->name('judge-scopes.index');
 Route::get('/judges/my-assignments', fn () => Inertia::render('Judges/MyAssignments'))->name('judges.assignments');

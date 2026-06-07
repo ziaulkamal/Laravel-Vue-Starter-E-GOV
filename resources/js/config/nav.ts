@@ -7,6 +7,7 @@ import {
     Hotel, CreditCard,
     Download, Activity, UserCog,
     FileCheck, DatabaseZap, ClipboardList, ArrowLeftRight, Gavel,
+    Network, FileEdit,
 } from '@lucide/vue';
 
 export interface NavItem {
@@ -80,7 +81,9 @@ export const simporaNavGroups: NavGroup[] = [
         color: '#d97706',
         items: [
             { label: 'Jadwal Pertandingan', icon: Calendar,  href: '/matches',      permission: 'matches.view' },
+            { label: 'Grup Pertandingan',   icon: Network,   href: '/tournament-groups', roles: ['super_admin', 'panitia_besar'] },
             { label: 'Tugas Penilaian',     icon: Gavel,     href: '/judges/my-assignments', roles: ['super_admin', 'panitia_besar', 'admin_penilaian'] },
+            { label: 'Perubahan Hasil',     icon: FileEdit,  href: '/result-change-requests', roles: ['super_admin', 'panitia_besar', 'admin_penilaian'] },
             { label: 'Juri',               icon: UserCheck, href: '/judge-scopes',  roles: ['super_admin', 'panitia_besar'] },
             { label: 'Klasemen',           icon: BarChart2, href: '/leaderboard',   permission: 'results.view' },
         ],

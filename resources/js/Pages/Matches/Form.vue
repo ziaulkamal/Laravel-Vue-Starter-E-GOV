@@ -102,12 +102,13 @@
                         <button type="button" :class="['stage-opt', { active: form.stage === 'knockout' }]" @click="form.stage = 'knockout'">🏆 Fase Gugur</button>
                     </div>
                     <div class="form-grid" style="margin-top:16px">
-                        <AppInput
+                        <AppSelectSearch
                             v-if="form.stage === 'group'"
                             v-model="form.group_label"
-                            label="Label Grup"
-                            placeholder="Contoh: A"
-                            hint="Penanda grup (tim segrup pakai label sama)"
+                            label="Grup"
+                            placeholder="Pilih grup"
+                            :loading="loadingGroups"
+                            :options="groupOptions"
                             :error="errors.group_label"
                         />
                         <AppSelectSearch
@@ -128,10 +129,14 @@
                             :error="errors.bracket_slot"
                         />
                     </div>
+                    <p v-if="form.stage === 'group' && !loadingGroups && !groupOptions.length" class="stage-warn">
+                        Belum ada grup untuk sub-cabor ini. Tambahkan dulu di menu
+                        <a href="/tournament-groups" class="stage-link">Grup Pertandingan</a>.
+                    </p>
                     <p class="stage-note">
                         {{ form.stage === 'knockout'
                             ? 'Laga gugur: skor imbang diselesaikan lewat adu penalti saat input hasil.'
-                            : 'Laga grup mengisi klasemen. Beri label grup yang sama untuk tim segrup.' }}
+                            : 'Laga grup mengisi klasemen. Grup dipilih dari daftar yang sudah diatur (bukan ketik bebas).' }}
                     </p>
                 </AppCard>
 
@@ -220,6 +225,7 @@ const loadingSports     = ref(false);
 const loadingCategories = ref(false);
 const loadingVenues     = ref(false);
 const loadingContingents= ref(false);
+const loadingGroups     = ref(false);
 
 const form = reactive({
     sport_id:          '',
@@ -241,6 +247,7 @@ const sportOptions     = ref<Option[]>([]);
 const categoryOptions  = ref<Option[]>([]);
 const venueOptions     = ref<Option[]>([]);
 const contingentOptions= ref<Option[]>([]);
+const groupOptions     = ref<Option[]>([]); // daftar grup (select option) untuk fase grup
 const categories       = ref<any[]>([]);   // simpan objek penuh untuk derive kind
 
 // ── Kontingen state ──
@@ -322,6 +329,19 @@ async function fetchContingents() {
     } catch { /* abaikan */ } finally { loadingContingents.value = false; }
 }
 
+async function fetchGroups(categoryId: string) {
+    groupOptions.value = [];
+    if (!categoryId) return;
+    loadingGroups.value = true;
+    try {
+        const res = await api.get('/api/v1/tournament-groups', { params: { sport_category_id: categoryId } });
+        groupOptions.value = extractList(res).map(g => ({
+            value: String(g.label),
+            label: g.name ? `Grup ${g.label} — ${g.name}` : `Grup ${g.label}`,
+        }));
+    } catch { /* abaikan */ } finally { loadingGroups.value = false; }
+}
+
 function onSportChange() {
     form.sport_category_id = '';
     categoryOptions.value = [];
@@ -334,7 +354,8 @@ function onCategoryChange() {
     form.stage = hasStaging.value ? 'group' : '';
     form.group_label = '';
     form.bracket_slot = '';
-    if (hasStaging.value) form.round = '';
+    if (hasStaging.value) { form.round = ''; fetchGroups(form.sport_category_id); }
+    else groupOptions.value = [];
 }
 
 // ── Edit: muat data match ──
@@ -483,4 +504,6 @@ async function submit() {
 .stage-opt:hover  { border-color: var(--color-accent); }
 .stage-opt.active { border-color: var(--color-accent); background: var(--color-accent-subtle); color: var(--color-accent); }
 .stage-note  { margin-top: 12px; font-size: 12px; color: var(--color-text-muted); line-height: 1.45; }
+.stage-warn  { margin-top: 12px; font-size: 12px; color: var(--color-danger); line-height: 1.45; }
+.stage-link  { color: var(--color-accent); font-weight: 600; text-decoration: underline; }
 </style>

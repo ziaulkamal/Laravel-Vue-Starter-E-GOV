@@ -167,6 +167,12 @@
                 <div v-if="canScore && ['scheduled','postponed'].includes(match.status)" class="score-hint">
                     💡 Ubah status ke <strong>Berlangsung</strong> (menu "Ubah Status") untuk mulai melakukan penilaian.
                 </div>
+                <div v-if="canRequestChange && match.status === 'finished' && hasResult" class="change-req-bar">
+                    <AppButton variant="secondary" size="sm" @click="openChangeReq">
+                        <template #icon><FileEdit :size="14" /></template> Ajukan Perubahan Skor
+                    </AppButton>
+                    <span class="change-req-hint">Perubahan skor pertandingan yang sudah selesai harus diajukan dengan keterangan & disetujui panitia besar.</span>
+                </div>
             </AppCard>
 
             <!-- ── Medali ──────────────────────────────────────────────────── -->
@@ -378,12 +384,58 @@
                 <AppButton variant="primary" :loading="savingLineup" :disabled="!lineupPick" @click="saveLineup">Tambahkan</AppButton>
             </template>
         </AppModal>
+
+        <!-- Modal Ajukan Perubahan Skor (pertandingan selesai) -->
+        <AppModal v-model="showChangeReq" title="Ajukan Perubahan Skor" size="sm">
+            <div class="chg-body">
+                <p class="chg-hint">Usulkan skor baru untuk <strong>{{ match?.match_code }}</strong>. Perubahan baru berlaku setelah disetujui panitia besar.</p>
+
+                <!-- BO3: per set -->
+                <div v-if="isBo3" class="chg-sets">
+                    <div v-for="(s, i) in setsForm" :key="i" class="chg-set-row">
+                        <span class="chg-set-label">Set {{ i + 1 }}</span>
+                        <input type="number" min="0" class="chg-input" v-model.number="s.home" />
+                        <span class="chg-sep">–</span>
+                        <input type="number" min="0" class="chg-input" v-model.number="s.away" />
+                        <button v-if="setsForm.length > 1" type="button" class="chg-set-x" @click="removeSet(i)">×</button>
+                    </div>
+                    <AppButton v-if="setsForm.length < 3" size="xs" variant="ghost" @click="addSet">+ Set</AppButton>
+                </div>
+
+                <!-- Versus skor tunggal -->
+                <div v-else class="chg-score">
+                    <div class="chg-side">
+                        <span class="chg-side-name">{{ cap(homeC?.name) ?? 'Home' }}</span>
+                        <input type="number" min="0" class="chg-input" v-model.number="scoreForm.home" />
+                    </div>
+                    <span class="chg-colon">:</span>
+                    <div class="chg-side">
+                        <span class="chg-side-name">{{ cap(awayC?.name) ?? 'Away' }}</span>
+                        <input type="number" min="0" class="chg-input" v-model.number="scoreForm.away" />
+                    </div>
+                </div>
+
+                <!-- Adu penalti (fase gugur, imbang) -->
+                <div v-if="needPenalty" class="chg-penalty">
+                    <span class="chg-pen-label">⚽ Adu Penalti</span>
+                    <input type="number" min="0" class="chg-input" v-model.number="penaltyForm.home" />
+                    <span class="chg-sep">–</span>
+                    <input type="number" min="0" class="chg-input" v-model.number="penaltyForm.away" />
+                </div>
+
+                <AppTextarea v-model="changeReason" label="Keterangan / Alasan Perubahan" :rows="3" placeholder="Wajib diisi — mis. koreksi salah input gol menit ke-80" />
+            </div>
+            <template #footer>
+                <AppButton variant="secondary" @click="showChangeReq = false">Batal</AppButton>
+                <AppButton variant="primary" :loading="submittingChange" :disabled="!changeReason.trim()" @click="submitChangeReq">Ajukan</AppButton>
+            </template>
+        </AppModal>
     </SimporaLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
-import { Pencil, Trash2, Plus } from '@lucide/vue';
+import { Pencil, Trash2, Plus, FileEdit } from '@lucide/vue';
 import api            from '@/lib/axios';
 import { decodeId, encodeId } from '@/lib/hashid';
 import { useNotFound } from '@/Composables/useNotFound';
@@ -399,6 +451,7 @@ import AppDropdown    from '@/Components/App/AppDropdown.vue';
 import AppModal       from '@/Components/App/AppModal.vue';
 import AppEmptyState  from '@/Components/App/AppEmptyState.vue';
 import AppSelectSearch from '@/Components/App/AppSelectSearch.vue';
+import AppTextarea    from '@/Components/App/AppTextarea.vue';
 import ContingentLogo from '@/Components/App/ContingentLogo.vue';
 
 interface Props { id: string | number }
@@ -416,6 +469,11 @@ const penaltyForm = reactive({ home: 0, away: 0 });
 const savingScore = ref(false);
 const finishing   = ref(false);
 const showFinish  = ref(false);
+
+// ── Pengajuan perubahan skor (pertandingan selesai) ──
+const showChangeReq    = ref(false);
+const changeReason     = ref('');
+const submittingChange = ref(false);
 
 const activeTab   = ref('lineup');
 const tabs = [{ value: 'lineup', label: 'Susunan Tim' }, { value: 'juri', label: 'Juri' }, { value: 'riwayat', label: 'Riwayat' }, { value: 'info', label: 'Info' }];
@@ -638,6 +696,8 @@ const canScore = computed(() =>
 );
 // Penilaian hanya saat pertandingan berlangsung & oleh super admin / juri ditugaskan.
 const isScoring = computed(() => match.value?.status === 'ongoing' && canScore.value);
+// Pengajuan perubahan: juri ditugaskan / penilai / super admin, untuk laga versus.
+const canRequestChange = computed(() => (canScore.value || can('results.manage')) && kind.value === 'versus');
 
 const bo3Home = computed(() => setsForm.value.filter(s => (Number(s.home) || 0) > (Number(s.away) || 0)).length);
 const bo3Away = computed(() => setsForm.value.filter(s => (Number(s.away) || 0) > (Number(s.home) || 0)).length);
@@ -814,6 +874,37 @@ async function saveScore(): Promise<boolean> {
         toast.error(e?.response?.data?.message ?? 'Gagal menyimpan skor');
         return false;
     } finally { savingScore.value = false; }
+}
+
+// ── Pengajuan perubahan skor (laga selesai) ──────────────────────────────────
+function openChangeReq() {
+    syncScoreForm();      // prefill dari hasil terkini
+    changeReason.value = '';
+    showChangeReq.value = true;
+}
+async function submitChangeReq() {
+    if (!changeReason.value.trim()) return;
+    if (needPenalty.value && Number(penaltyForm.home) === Number(penaltyForm.away)) {
+        toast.error('Skor imbang di fase gugur — isi adu penalti dengan pemenang (skor berbeda).');
+        return;
+    }
+    submittingChange.value = true;
+    try {
+        await api.post(`/api/v1/matches/${realId}/result-change-requests`, {
+            new_data: buildResultData(),
+            reason: changeReason.value.trim(),
+        });
+        toast.success('Pengajuan perubahan skor terkirim, menunggu persetujuan panitia besar.');
+        showChangeReq.value = false;
+    } catch (e: any) {
+        if (e?.response?.status === 422) {
+            const errs = e.response.data?.errors ?? {};
+            const first = Object.values(errs)[0] as string[] | undefined;
+            toast.error(first?.[0] ?? e.response.data?.message ?? 'Data tidak valid');
+        } else {
+            toast.error(e?.response?.data?.message ?? 'Gagal mengajukan perubahan');
+        }
+    } finally { submittingChange.value = false; }
 }
 
 async function finishMatch() {
@@ -1038,6 +1129,23 @@ function medalColor(m: string) {
 
 .result-notes { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--color-border); font-size: 12.5px; color: var(--color-text-muted); }
 .score-hint   { margin-top: 16px; padding: 10px 12px; border-radius: 8px; background: var(--color-accent-subtle); font-size: 12.5px; color: var(--color-text-muted); }
+.change-req-bar { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--color-border); display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.change-req-hint { font-size: 11.5px; color: var(--color-text-subtle); max-width: 420px; line-height: 1.45; }
+.chg-body    { display: flex; flex-direction: column; gap: 14px; }
+.chg-hint    { font-size: 12.5px; color: var(--color-text-muted); margin: 0; line-height: 1.5; }
+.chg-score   { display: flex; align-items: flex-end; justify-content: center; gap: 14px; }
+.chg-side    { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.chg-side-name { font-size: 12px; font-weight: 600; color: var(--color-text-primary); max-width: 120px; text-align: center; }
+.chg-colon   { font-size: 22px; font-weight: 800; color: var(--color-text-subtle); padding-bottom: 6px; }
+.chg-input   { width: 72px; text-align: center; font-family: var(--font-mono); font-size: 20px; font-weight: 800; padding: 6px 8px; border: 1.5px solid var(--color-border); border-radius: 10px; background: var(--color-bg-subtle); color: var(--color-text-primary); outline: none; }
+.chg-input:focus { border-color: var(--color-accent); }
+.chg-penalty { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px; border: 1.5px dashed var(--color-warning); border-radius: 10px; }
+.chg-pen-label { font-size: 12px; font-weight: 600; color: var(--color-text-muted); }
+.chg-sep     { font-size: 16px; font-weight: 700; color: var(--color-text-subtle); }
+.chg-sets    { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.chg-set-row { display: flex; align-items: center; gap: 8px; }
+.chg-set-label { font-size: 12px; font-weight: 600; color: var(--color-text-muted); width: 48px; }
+.chg-set-x   { border: none; background: transparent; color: var(--color-danger); cursor: pointer; font-size: 18px; line-height: 1; }
 
 /* Penilaian (scoring editor) */
 .scoreboard.scoring  { border-color: var(--color-success); }
