@@ -37,6 +37,14 @@
                             <label class="field-label">Status</label>
                             <AppToggle v-model="form.is_active" label="Aktif" />
                         </div>
+                        <div class="form-field">
+                            <label class="field-label">Tuan Rumah</label>
+                            <AppToggle
+                                v-model="form.is_host"
+                                label="Kontingen tuan rumah event"
+                                description="Hanya satu kontingen — mengaktifkan ini otomatis melepas tuan rumah lain."
+                            />
+                        </div>
                     </div>
                 </AppCard>
 
@@ -91,6 +99,7 @@ const form = reactive({
     contact_person: '',
     contact_phone: '',
     is_active: true,
+    is_host: false,
 });
 
 async function loadKabupaten() {
@@ -126,6 +135,7 @@ async function loadExisting() {
         form.contact_person = c.contact_person ?? '';
         form.contact_phone  = c.contact_phone ?? '';
         form.is_active      = !!c.is_active;
+        form.is_host        = !!c.is_host;
     } catch (e: any) {
         if (e?.response?.status === 404) { notFound(); return; }
         toast.error('Gagal memuat data kontingen');
@@ -144,6 +154,7 @@ async function submit() {
         contact_person: form.contact_person || null,
         contact_phone: form.contact_phone || null,
         is_active: form.is_active,
+        is_host: form.is_host,
     };
     try {
         let id = realId.value;

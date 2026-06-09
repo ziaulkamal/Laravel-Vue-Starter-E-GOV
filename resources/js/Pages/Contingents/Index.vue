@@ -42,7 +42,10 @@
                     <div class="contingent-card__body">
                         <ContingentLogo :contingent="c" :size="48" :radius="12" />
                         <div class="contingent-card__info">
-                            <div class="contingent-card__name">{{ c.name }}</div>
+                            <div class="contingent-card__name">
+                                {{ c.name }}
+                                <AppBadge v-if="c.is_host" color="warning" size="sm">Tuan Rumah</AppBadge>
+                            </div>
                             <div class="contingent-card__short">{{ c.short_name }}</div>
                             <div class="contingent-card__stats">
                                 {{ c.wilayah?.nama ?? '—' }}
@@ -86,7 +89,7 @@ import { usePageGuard } from '@/Composables/usePageGuard';
 
 interface Contingent {
     id: number; name: string; short_name: string; wilayah_kode?: string | null;
-    is_active: boolean; wilayah?: { kode: string; nama: string } | null;
+    is_active: boolean; is_host?: boolean; wilayah?: { kode: string; nama: string } | null;
 }
 
 usePageGuard({ permission: 'contingents.view' });
