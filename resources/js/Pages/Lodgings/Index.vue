@@ -6,7 +6,7 @@
                     <h1 class="page-title">Penginapan</h1>
                     <p class="page-subtitle">Kelola penginapan peserta PORA XV</p>
                 </div>
-                <AppButton variant="primary" size="md">+ Tambah Penginapan</AppButton>
+                <AppButton variant="primary" size="md" @click="$inertia.visit('/lodgings/create')">+ Tambah Penginapan</AppButton>
             </div>
 
             <AppCard padding="none">
@@ -42,7 +42,7 @@
                                 <td class="dt-td dt-td--actions">
                                     <div class="action-btns">
                                         <AppButton size="xs" variant="ghost" @click="$inertia.visit(`/lodgings/${encodeId(l.id)}`)"><Eye :size="14" /></AppButton>
-                                        <AppButton size="xs" variant="ghost"><Pencil :size="14" /></AppButton>
+                                        <AppButton size="xs" variant="ghost" @click="$inertia.visit(`/lodgings/${encodeId(l.id)}/edit`)"><Pencil :size="14" /></AppButton>
                                     </div>
                                 </td>
                             </tr>

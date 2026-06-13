@@ -79,8 +79,10 @@ Route::get('/judges/my-assignments', fn () => Inertia::render('Judges/MyAssignme
 Route::get('/leaderboard', fn () => Inertia::render('Leaderboard/Index'))->name('leaderboard.index');
 
 // ── Penginapan ────────────────────────────────────────────────
-Route::get('/lodgings',        fn () => Inertia::render('Lodgings/Index'))->name('lodgings.index');
-Route::get('/lodgings/{id}',   fn ($id) => Inertia::render('Lodgings/Show', ['id' => $id]))->name('lodgings.show');
+Route::get('/lodgings',          fn () => Inertia::render('Lodgings/Index'))->name('lodgings.index');
+Route::get('/lodgings/create',   fn () => Inertia::render('Lodgings/Form'))->name('lodgings.create');
+Route::get('/lodgings/{id}/edit',fn ($id) => Inertia::render('Lodgings/Form', ['id' => $id]))->name('lodgings.edit');
+Route::get('/lodgings/{id}',     fn ($id) => Inertia::render('Lodgings/Show', ['id' => $id]))->name('lodgings.show');
 
 // ── Kartu Identitas ───────────────────────────────────────────
 Route::get('/card-templates',          fn () => Inertia::render('CardTemplates/Index'))->name('card-templates.index');

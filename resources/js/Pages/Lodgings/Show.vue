@@ -5,7 +5,7 @@
 
             <div class="page-header">
                 <h1 class="page-title">{{ lodging?.name ?? 'Memuat...' }}</h1>
-                <AppButton variant="secondary" size="sm"><Pencil :size="14" /> Edit</AppButton>
+                <AppButton variant="secondary" size="sm" @click="$inertia.visit(`/lodgings/${props.id}/edit`)"><Pencil :size="14" /> Edit</AppButton>
             </div>
 
             <AppTabs v-if="lodging" v-model="activeTab" variant="underline" :tabs="tabs">
